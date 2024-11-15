@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <title>貪食蛇</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            font-family: 'Noto Sans TC', Arial, sans-serif;
+            color: #fff;
+        }
+
+        h1 {
+            margin-bottom: 30px;
+            font-size: 3em;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes glow {
+            from {
+                text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 15px #0ff;
+            }
+
+            to {
+                text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px #0ff;
+            }
+        }
+
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+        }
+
+        canvas {
+            background-color: rgba(0, 0, 0, 0.8);
+            border: 3px solid #00f7ff;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 247, 255, 0.3);
+        }
+
+        .score {
+            font-size: 2em;
+            margin: 20px 0;
+            padding: 10px 20px;
+            background: rgba(0, 247, 255, 0.1);
+            border-radius: 10px;
+            border: 2px solid #00f7ff;
+        }
+
+        .controls {
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .button {
+            padding: 12px 30px;
+            font-size: 1.2em;
+            margin: 10px;
+            cursor: pointer;
+            border: none;
+            background: linear-gradient(45deg, #00f7ff, #00a8ff);
+            color: #fff;
+            border-radius: 25px;
+            transition: all 0.3s ease;
+            font-family: 'Noto Sans TC', Arial, sans-serif;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 5px 15px rgba(0, 247, 255, 0.4);
+        }
+
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 247, 255, 0.6);
+        }
+
+        .button:active {
+            transform: translateY(1px);
+        }
+
+        .instructions {
+            margin-top: 20px;
+            text-align: center;
+            color: #ccc;
+            font-size: 0.9em;
+            line-height: 1.6;
+            max-width: 400px;
+        }
+
+        .key {
+            display: inline-block;
+            padding: 2px 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            margin: 0 2px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+    </style>
+</head>
+
+<body>
+    <h1>貪食蛇</h1>
+    <div class="game-container">
+        <canvas id="gameCanvas" width="400" height="400"></canvas>
+        <div class="score">分數: <span id="score">0</span></div>
+        <div class="controls">
+            <button class="button" onclick="initGame()">重新開始</button>
+        </div>
+        <div class="instructions">
+            使用方向鍵控制蛇的移動：<br>
+            <span class="key">↑</span> 向上
+            <span class="key">↓</span> 向下
+            <span class="key">←</span> 向左
+            <span class="key">→</span> 向右<br>
+            點擊畫面任意位置設定目標點<br>
+            按 <span class="key">A</span> 開啟/關閉自動尋找最近的食物
+        </div>
+    </div>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const unit = 20;
+        const canvasWidth = canvas.width;
+        const canvasHeight = canvas.height;
+        const initialFoodCount = 5;
+        let snake = [{ x: 200, y: 200 }];
+        let direction = 'RIGHT';
+        let foods = [];
+        let score = 0;
+        let target = null;
+        let gameLoop;
+        let autoFindFood = true;
+
+        function initGame() {
+            if (gameLoop) clearInterval(gameLoop);
+
+            snake = [{ x: 200, y: 200 }];
+            direction = 'RIGHT';
+            foods = [];
+            score = 0;
+            target = null;
+            document.getElementById('score').innerText = score;
+            document.addEventListener('keydown', changeDirection);
+            document.addEventListener('keydown', toggleAutoFindFood);
+            canvas.addEventListener('click', setTarget);
+            generateInitialFoods();
+            findNearestFoodTarget(); // 初始時設置最近的食物為目標
+            gameLoop = setInterval(draw, 100);
+        }
+
+        function toggleAutoFindFood(event) {
+            if (event.key === 'a' || event.key === 'A') {
+                autoFindFood = !autoFindFood;
+                if (autoFindFood) {
+                    findNearestFoodTarget();
+                } else {
+                    target = null;
+                }
+            }
+        }
+
+        function changeDirection(event) {
+            const key = event.keyCode;
+            if (key === 37 && direction !== 'RIGHT') direction = 'LEFT';
+            else if (key === 38 && direction !== 'DOWN') direction = 'UP';
+            else if (key === 39 && direction !== 'LEFT') direction = 'RIGHT';
+            else if (key === 40 && direction !== 'UP') direction = 'DOWN';
+            autoFindFood = false; // Cancel auto food search when arrow key is pressed
+        }
+
+        function setTarget(event) {
+            const rect = canvas.getBoundingClientRect();
+            const clickX = event.clientX - rect.left;
+            const clickY = event.clientY - rect.top;
+            target = {
+                x: Math.floor(clickX / unit) * unit,
+                y: Math.floor(clickY / unit) * unit
+            };
+        }
+
+        function findNearestFoodTarget() {
+            if (foods.length === 0) return;
+
+            const head = snake[0];
+            let nearestFood = foods[0];
+            let minDistance = calculateDistance(head, foods[0]);
+
+            for (let i = 1; i < foods.length; i++) {
+                const distance = calculateDistance(head, foods[i]);
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    nearestFood = foods[i];
+                }
+            }
+
+            target = nearestFood;
+        }
+
+        function calculateDistance(point1, point2) {
+            // 考慮穿牆情況的距離計算
+            const dx = Math.min(
+                Math.abs(point1.x - point2.x),
+                canvasWidth - Math.abs(point1.x - point2.x)
+            );
+            const dy = Math.min(
+                Math.abs(point1.y - point2.y),
+                canvasHeight - Math.abs(point1.y - point2.y)
+            );
+            return dx * dx + dy * dy;
+        }
+
+        function drawSnakePart(x, y, isHead) {
+            ctx.beginPath();
+            ctx.arc(x + unit / 2, y + unit / 2, unit / 2 - 2, 0, 2 * Math.PI);
+
+            if (isHead) {
+                const gradient = ctx.createRadialGradient(
+                    x + unit / 2, y + unit / 2, 0,
+                    x + unit / 2, y + unit / 2, unit / 2
+                );
+                gradient.addColorStop(0, '#00f7ff');
+                gradient.addColorStop(1, '#0056b3');
+                ctx.fillStyle = gradient;
+            } else {
+                const gradient = ctx.createRadialGradient(
+                    x + unit / 2, y + unit / 2, 0,
+                    x + unit / 2, y + unit / 2, unit / 2
+                );
+                gradient.addColorStop(0, '#00ff88');
+                gradient.addColorStop(1, '#00b359');
+                ctx.fillStyle = gradient;
+            }
+
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+
+        function drawFood(x, y) {
+            ctx.beginPath();
+            ctx.arc(x + unit / 2, y + unit / 2, unit / 3, 0, 2 * Math.PI);
+            const gradient = ctx.createRadialGradient(
+                x + unit / 2, y + unit / 2, 0,
+                x + unit / 2, y + unit / 2, unit / 3
+            );
+            gradient.addColorStop(0, '#ff6b6b');
+            gradient.addColorStop(1, '#ff0000');
+            ctx.fillStyle = gradient;
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // 添加光暈效果
+            ctx.beginPath();
+            ctx.arc(x + unit / 2, y + unit / 2, unit / 2.5, 0, 2 * Math.PI);
+            ctx.strokeStyle = 'rgba(255, 0, 0, 0.3)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+
+            // 繪製網格背景
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.lineWidth = 0.5;
+            for (let i = 0; i <= canvasWidth; i += unit) {
+                ctx.beginPath();
+                ctx.moveTo(i, 0);
+                ctx.lineTo(i, canvasHeight);
+                ctx.stroke();
+            }
+            for (let i = 0; i <= canvasHeight; i += unit) {
+                ctx.beginPath();
+                ctx.moveTo(0, i);
+                ctx.lineTo(canvasWidth, i);
+                ctx.stroke();
+            }
+
+            // 繪製食物
+            foods.forEach(food => drawFood(food.x, food.y));
+
+            // 繪製蛇
+            snake.forEach((part, index) => {
+                drawSnakePart(part.x, part.y, index === 0);
+            });
+
+            // 移動蛇
+            let head = { ...snake[0] };
+            if (autoFindFood && target) {
+                if (head.x < target.x) direction = 'RIGHT';
+                else if (head.x > target.x) direction = 'LEFT';
+                else if (head.y < target.y) direction = 'DOWN';
+                else if (head.y > target.y) direction = 'UP';
+            }
+
+            if (direction === 'LEFT') head.x -= unit;
+            else if (direction === 'UP') head.y -= unit;
+            else if (direction === 'RIGHT') head.x += unit;
+            else if (direction === 'DOWN') head.y += unit;
+
+            if (head.x < 0) head.x = canvasWidth - unit;
+            else if (head.x >= canvasWidth) head.x = 0;
+            if (head.y < 0) head.y = canvasHeight - unit;
+            else if (head.y >= canvasHeight) head.y = 0;
+
+            const foodIndex = foods.findIndex(food => food.x === head.x && food.y === head.y);
+            if (foodIndex !== -1) {
+                foods.splice(foodIndex, 1);
+                generateFood();
+                snake.unshift(head);
+                score++;
+                document.getElementById('score').innerText = score;
+                // 當吃到食物後自動選擇最近的下一個食物作為目標
+                findNearestFoodTarget();
+            } else {
+                snake.pop();
+                snake.unshift(head);
+            }
+        }
+
+        function generateInitialFoods() {
+            for (let i = 0; i < initialFoodCount; i++) {
+                generateFood();
+            }
+        }
+
+        function generateFood() {
+            const availablePositions = getAvailablePositions();
+            if (availablePositions.length === 0) {
+                console.log('無可用位置生成新食物');
+                return;
+            }
+            const randomIndex = Math.floor(Math.random() * availablePositions.length);
+            foods.push(availablePositions[randomIndex]);
+        }
+
+        function getAllPositions() {
+            const positions = [];
+            for (let x = 0; x < canvasWidth; x += unit) {
+                for (let y = 0; y < canvasHeight; y += unit) {
+                    positions.push({ x, y });
+                }
+            }
+            return positions;
+        }
+
+        function getAvailablePositions() {
+            const allPositions = getAllPositions();
+            return allPositions.filter(pos =>
+                !snake.some(part => part.x === pos.x && part.y === pos.y) &&
+                !foods.some(food => food.x === pos.x && food.y === pos.y)
+            );
+        }
+
+        initGame();
+    </script>
+</body>
+
+</html>
