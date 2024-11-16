@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Written by AI</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap');
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            font-family: 'Noto Sans TC', Arial, sans-serif;
+            color: #fff;
+        }
+
+        h1 {
+            font-size: 3em;
+            margin-bottom: 30px;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes glow {
+            from {
+                text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 15px #0ff;
+            }
+
+            to {
+                text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px #0ff;
+            }
+        }
+
+        ul {
+            list-style: none;
+            padding: 0;
+            display: flex;
+            gap: 20px;
+        }
+
+        a {
+            text-decoration: none;
+            padding: 15px 30px;
+            background: rgba(0, 247, 255, 0.1);
+            color: #fff;
+            border-radius: 25px;
+            border: 2px solid #00f7ff;
+            transition: all 0.3s ease;
+            font-size: 1.2em;
+            box-shadow: 0 5px 15px rgba(0, 247, 255, 0.4);
+        }
+
+        a:hover {
+            transform: translateY(-2px);
+            background: rgba(0, 247, 255, 0.2);
+            box-shadow: 0 8px 20px rgba(0, 247, 255, 0.6);
+        }
+
+        a:active {
+            transform: translateY(1px);
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Welcome to Written by AI</h1>
+    <ul>
+        <li><a href="gomoku/gomoku.html">Gomoku</a></li>
+        <li><a href="snake/snake.html">Snake</a></li>
+    </ul>
+</body>
+
+</html>
