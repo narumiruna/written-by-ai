@@ -37,6 +37,12 @@ TILE_COLORS = {
 # Text colors based on tile value
 TEXT_COLORS = {2: TEXT_COLOR, 4: TEXT_COLOR}
 
+# New global constants for layout and animation durations.
+ANIMATION_DURATION = 200  # milliseconds for new tile animation
+TITLE_Y = 20  # Y coordinate for the title text
+SUBTITLE_Y = 85  # Y coordinate for the subtitle text
+GRID_TOP_Y = 195  # Y coordinate where grid starts
+
 
 class Game2048:
     def __init__(
@@ -121,29 +127,27 @@ class Game2048:
         self.empty_cells.remove((row_idx, col_idx))
         return (row_idx, col_idx)
 
-    def slide(self, row):
-        """Slide a row to the left and combine tiles"""
+    # Rename slide method to merge_row for better clarity.
+    def merge_row(self, row):
+        """Slide a row to the left and merge tiles (2048 logic)."""
         row = [value for value in row if value != 0]
-
         for i in range(len(row) - 1):
             if row[i] == row[i + 1]:
                 row[i] *= 2
                 self.score += row[i]
                 row[i + 1] = 0
-
         row = [value for value in row if value != 0]
-
         while len(row) < self.grid_size:
             row.append(0)
-
         return row
 
+    # Update movement methods to use merge_row.
     def move_left(self):
         """Move tiles left"""
         moved = False
         for row_idx in range(self.grid_size):
             original_row = self.board[row_idx].copy()
-            self.board[row_idx] = self.slide(self.board[row_idx])
+            self.board[row_idx] = self.merge_row(self.board[row_idx])
             if original_row != self.board[row_idx]:
                 moved = True
         return moved
@@ -154,7 +158,7 @@ class Game2048:
         for row_idx in range(self.grid_size):
             original_row = self.board[row_idx].copy()
             reversed_row = self.board[row_idx][::-1]
-            slid_row = self.slide(reversed_row)
+            slid_row = self.merge_row(reversed_row)
             self.board[row_idx] = slid_row[::-1]
             if original_row != self.board[row_idx]:
                 moved = True
@@ -224,20 +228,64 @@ class Game2048:
                 if self.is_game_over():
                     self.game_over = True
 
+    # Extract tile rendering and animation into its own method.
+    def draw_tile(self, x, y, value, row_idx, col_idx, current_time):
+        # Draw tile background.
+        color = TILE_COLORS.get(value, TILE_COLORS[2048])
+        tile_rect = pygame.Rect(x, y, self.tile_size, self.tile_size)
+        pygame.draw.rect(self.screen, color, tile_rect, border_radius=3)
+
+        # If a new tile is being animated, apply scaling.
+        if (current_time - self.animation_start_time < ANIMATION_DURATION) and (
+            self.new_tile_position == (row_idx, col_idx)
+        ):
+            progress = (current_time - self.animation_start_time) / ANIMATION_DURATION
+            scale = 0.1 + 0.9 * progress
+            if scale < 1.0:
+                scaled_size = int(self.tile_size * scale)
+                offset = (self.tile_size - scaled_size) // 2
+                scaled_rect = pygame.Rect(
+                    x + offset, y + offset, scaled_size, scaled_size
+                )
+                pygame.draw.rect(self.screen, color, scaled_rect, border_radius=3)
+
+        # For non-empty tiles, render the number.
+        if value != 0:
+            font = self.tile_fonts.get(value, self.tile_fonts[2048])
+            text_color = TEXT_COLORS.get(value, LIGHT_TEXT)
+            text = font.render(str(value), True, text_color)
+            if (current_time - self.animation_start_time < ANIMATION_DURATION) and (
+                self.new_tile_position == (row_idx, col_idx)
+            ):
+                progress = (
+                    current_time - self.animation_start_time
+                ) / ANIMATION_DURATION
+                scale = 0.1 + 0.9 * progress
+                if scale < 1.0:
+                    text = pygame.transform.scale(
+                        text,
+                        (int(text.get_width() * scale), int(text.get_height() * scale)),
+                    )
+            text_x = x + (self.tile_size - text.get_width()) // 2
+            text_y = y + (self.tile_size - text.get_height()) // 2
+            self.screen.blit(text, (text_x, text_y))
+
+    # Modify the draw method to use the new draw_tile method.
     def draw(self):
         """Draw the game board and UI"""
         self.screen.fill(BACKGROUND_COLOR)
 
         title_text = self.title_font.render("2048", True, TEXT_COLOR)
         self.screen.blit(
-            title_text, (self.width // 2 - title_text.get_width() // 2, 20)
+            title_text, (self.width // 2 - title_text.get_width() // 2, TITLE_Y)
         )
 
         subtitle_text = self.subtitle_font.render(
             "Join the tiles, get to 2048!", True, TEXT_COLOR
         )
         self.screen.blit(
-            subtitle_text, (self.width // 2 - subtitle_text.get_width() // 2, 85)
+            subtitle_text,
+            (self.width // 2 - subtitle_text.get_width() // 2, SUBTITLE_Y),
         )
 
         pygame.draw.rect(
@@ -256,12 +304,15 @@ class Game2048:
         )
 
         grid_rect = pygame.Rect(
-            (self.width - self.grid_width) // 2, 195, self.grid_width, self.grid_height
+            (self.width - self.grid_width) // 2,
+            GRID_TOP_Y,
+            self.grid_width,
+            self.grid_height,
         )
         pygame.draw.rect(self.screen, GRID_COLOR, grid_rect, border_radius=6)
 
         current_time = pygame.time.get_ticks()
-        animation_active = current_time - self.animation_start_time < 200
+        grid_bottom = GRID_TOP_Y + self.grid_height + 20
 
         for row_idx in range(self.grid_size):
             for col_idx in range(self.grid_size):
@@ -272,54 +323,13 @@ class Game2048:
                     + self.grid_padding * (col_idx + 1)
                     + self.tile_size * col_idx
                 )
-                y = 195 + self.grid_padding * (row_idx + 1) + self.tile_size * row_idx
+                y = (
+                    GRID_TOP_Y
+                    + self.grid_padding * (row_idx + 1)
+                    + self.tile_size * row_idx
+                )
 
-                tile_rect = pygame.Rect(x, y, self.tile_size, self.tile_size)
-
-                color = TILE_COLORS.get(value, TILE_COLORS[2048])
-                pygame.draw.rect(self.screen, color, tile_rect, border_radius=3)
-
-                scale = 1.0
-                if animation_active and self.new_tile_position == (row_idx, col_idx):
-                    progress = (current_time - self.animation_start_time) / 200.0
-                    scale = 0.1 + 0.9 * progress
-
-                    if scale < 1.0:
-                        scaled_size = int(self.tile_size * scale)
-                        offset = (self.tile_size - scaled_size) // 2
-                        scaled_rect = pygame.Rect(
-                            x + offset, y + offset, scaled_size, scaled_size
-                        )
-                        pygame.draw.rect(
-                            self.screen, color, scaled_rect, border_radius=3
-                        )
-
-                if value != 0:
-                    font = self.tile_fonts.get(value, self.tile_fonts[2048])
-                    text_color = TEXT_COLORS.get(value, LIGHT_TEXT)
-                    text = font.render(str(value), True, text_color)
-
-                    text_x = x + (self.tile_size - text.get_width()) // 2
-                    text_y = y + (self.tile_size - text.get_height()) // 2
-
-                    if (
-                        animation_active
-                        and self.new_tile_position == (row_idx, col_idx)
-                        and scale < 1.0
-                    ):
-                        text = pygame.transform.scale(
-                            text,
-                            (
-                                int(text.get_width() * scale),
-                                int(text.get_height() * scale),
-                            ),
-                        )
-                        text_x = x + (self.tile_size - text.get_width()) // 2
-                        text_y = y + (self.tile_size - text.get_height()) // 2
-
-                    self.screen.blit(text, (text_x, text_y))
-
-        grid_bottom = 195 + self.grid_height + 20
+                self.draw_tile(x, y, value, row_idx, col_idx, current_time)
 
         instruction_text1 = self.instruction_font.render(
             "HOW TO PLAY: Use your arrow keys to move the tiles.", True, TEXT_COLOR
