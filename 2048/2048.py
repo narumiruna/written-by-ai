@@ -13,12 +13,17 @@ pygame.init()
 
 # Constants
 WIDTH = 500
-HEIGHT = 700  # Increased from 600 to 700 to provide more space
+# Calculate required height based on all UI elements:
+# - Title/header area: ~175px
+# - Grid area: GRID_HEIGHT + padding (~500px)
+# - Instructions area: ~80px
+# - Bottom padding: 20px
 GRID_SIZE = 4
 GRID_PADDING = 15
 TILE_SIZE = 100
 GRID_WIDTH = GRID_PADDING * (GRID_SIZE + 1) + TILE_SIZE * GRID_SIZE
 GRID_HEIGHT = GRID_WIDTH
+HEIGHT = 175 + GRID_HEIGHT + 100  # Dynamically calculate required height (~775px)
 FPS = 60
 
 # Colors (similar to web version)
@@ -292,7 +297,10 @@ class Game2048:
                         
                     screen.blit(text, (text_x, text_y))
         
-        # Draw instructions - positioned lower to avoid overlap
+        # Calculate the bottom position of the grid
+        grid_bottom = 195 + GRID_HEIGHT + 20  # 20px padding
+        
+        # Draw instructions - moved to below the grid
         instruction_text1 = instruction_font.render(
             "HOW TO PLAY: Use your arrow keys to move the tiles.", 
             True, TEXT_COLOR
@@ -301,9 +309,17 @@ class Game2048:
             "When two tiles with the same number touch, they merge into one!", 
             True, TEXT_COLOR
         )
-        # Adjusted positions for more space
-        screen.blit(instruction_text1, (WIDTH // 2 - instruction_text1.get_width() // 2, 605))
-        screen.blit(instruction_text2, (WIDTH // 2 - instruction_text2.get_width() // 2, 630))
+        
+        # Position instructions below the grid with proper spacing
+        screen.blit(instruction_text1, (WIDTH // 2 - instruction_text1.get_width() // 2, grid_bottom))
+        screen.blit(instruction_text2, (WIDTH // 2 - instruction_text2.get_width() // 2, grid_bottom + 25))
+        
+        # Add a padding indicator line at the bottom to verify visibility
+        pygame.draw.line(screen, 
+                         (200, 200, 200), 
+                         (0, HEIGHT - 10), 
+                         (WIDTH, HEIGHT - 10), 
+                         1)
         
         # Draw game over message
         if self.game_over:
