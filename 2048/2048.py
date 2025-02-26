@@ -37,12 +37,6 @@ TILE_COLORS = {
 # Text colors based on tile value
 TEXT_COLORS = {2: TEXT_COLOR, 4: TEXT_COLOR}
 
-# New global constants for layout and animation durations.
-ANIMATION_DURATION = 200  # milliseconds for new tile animation
-TITLE_Y = 20  # Y coordinate for the title text
-SUBTITLE_Y = 85  # Y coordinate for the subtitle text
-GRID_TOP_Y = 195  # Y coordinate where grid starts
-
 
 # --- New Game class holding the game logic ---
 class Game:
@@ -187,6 +181,11 @@ class Game:
 # --- New Renderer class handling rendering logic ---
 class Renderer:
     def __init__(self, game: Game, tile_size: int, fps: int, font_name: str = "Arial"):
+        # Replace uppercase constants with snake_case names.
+        self.animation_duration = 200  # milliseconds for new tile animation
+        self.title_y = 20  # Y coordinate for the title text
+        self.subtitle_y = 85  # Y coordinate for the subtitle text
+        self.grid_top_y = 195  # Y coordinate where grid starts
         self.game = game
         self.tile_size = tile_size
         self.fps = fps
@@ -240,8 +239,8 @@ class Renderer:
     def draw_tile(
         self, x: int, y: int, value: int, row_idx: int, col_idx: int, current_time: int
     ) -> None:
-        # Compute animation progress once.
-        anim_duration = ANIMATION_DURATION
+        # Update usage to snake_case.
+        anim_duration = self.animation_duration
         elapsed = current_time - self.game.animation_start_time
         is_anim_tile = (self.game.new_tile_position == (row_idx, col_idx)) and (
             elapsed < anim_duration
@@ -250,7 +249,6 @@ class Renderer:
         if is_anim_tile:
             progress = elapsed / anim_duration
             scale = 0.1 + 0.9 * progress
-        # If animation finished, reset new_tile_position.
         elif self.game.new_tile_position == (row_idx, col_idx):
             self.game.new_tile_position = None
         # Draw tile background.
@@ -283,14 +281,14 @@ class Renderer:
         self.screen.fill(BACKGROUND_COLOR)
         title_text = self.title_font.render("2048", True, TEXT_COLOR)
         self.screen.blit(
-            title_text, (self.width // 2 - title_text.get_width() // 2, TITLE_Y)
+            title_text, (self.width // 2 - title_text.get_width() // 2, self.title_y)
         )
         subtitle_text = self.subtitle_font.render(
             "Join the tiles, get to 2048!", True, TEXT_COLOR
         )
         self.screen.blit(
             subtitle_text,
-            (self.width // 2 - subtitle_text.get_width() // 2, SUBTITLE_Y),
+            (self.width // 2 - subtitle_text.get_width() // 2, self.subtitle_y),
         )
         pygame.draw.rect(
             self.screen,
@@ -308,13 +306,13 @@ class Renderer:
         )
         grid_rect = pygame.Rect(
             (self.width - self.grid_width) // 2,
-            GRID_TOP_Y,
+            self.grid_top_y,
             self.grid_width,
             self.grid_height,
         )
         pygame.draw.rect(self.screen, GRID_COLOR, grid_rect, border_radius=6)
         current_time = pygame.time.get_ticks()
-        grid_bottom = GRID_TOP_Y + self.grid_height + 20
+        grid_bottom = self.grid_top_y + self.grid_height + 20
         for row_idx in range(self.game.grid_size):
             for col_idx in range(self.game.grid_size):
                 value = self.game.board[row_idx][col_idx]
@@ -324,7 +322,7 @@ class Renderer:
                     + self.tile_size * col_idx
                 )
                 y = (
-                    GRID_TOP_Y
+                    self.grid_top_y
                     + self.grid_padding * (row_idx + 1)
                     + self.tile_size * row_idx
                 )
