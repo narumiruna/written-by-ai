@@ -2,40 +2,46 @@
 # requires-python = ">=3.12"
 # dependencies = [
 #     "click",
+#     "pydantic",
 #     "pygame",
+#     "pyyaml",
 # ]
 # ///
 import random
 import sys
+from typing import Dict, Tuple
 
 import click
 import pygame
+import yaml  # for loading YAML config
+from pydantic import BaseModel
 
-# Colors (similar to web version)
-BACKGROUND_COLOR = (250, 248, 239)  # #faf8ef
-GRID_COLOR = (187, 173, 160)  # #bbada0
-TEXT_COLOR = (119, 110, 101)  # #776e65
-LIGHT_TEXT = (249, 246, 242)  # #f9f6f2
-EMPTY_TILE = (205, 193, 180, 50)  # rgba(238, 228, 218, 0.35)
 
-# Tile colors based on value
-TILE_COLORS = {
-    0: EMPTY_TILE,
-    2: (238, 228, 218),  # #eee4da
-    4: (237, 224, 200),  # #ede0c8
-    8: (242, 177, 121),  # #f2b179
-    16: (245, 149, 99),  # #f59563
-    32: (246, 124, 95),  # #f67c5f
-    64: (246, 94, 59),  # #f65e3b
-    128: (237, 207, 114),  # #edcf72
-    256: (237, 204, 97),  # #edcc61
-    512: (237, 200, 80),  # #edc850
-    1024: (237, 197, 63),  # #edc53f
-    2048: (237, 194, 46),  # #edc22e
-}
-
-# Text colors based on tile value
-TEXT_COLORS = {2: TEXT_COLOR, 4: TEXT_COLOR}
+# --- New config model (using pydantic) ---
+class GameConfig(BaseModel):
+    background_color: Tuple[int, int, int] = (250, 248, 239)
+    grid_color: Tuple[int, int, int] = (187, 173, 160)
+    text_color: Tuple[int, int, int] = (119, 110, 101)
+    light_text: Tuple[int, int, int] = (249, 246, 242)
+    empty_tile: Tuple[int, int, int, int] = (205, 193, 180, 50)
+    tile_colors: Dict[int, Tuple[int, ...]] = {
+        0: (205, 193, 180, 50),
+        2: (238, 228, 218),
+        4: (237, 224, 200),
+        8: (242, 177, 121),
+        16: (245, 149, 99),
+        32: (246, 124, 95),
+        64: (246, 94, 59),
+        128: (237, 207, 114),
+        256: (237, 204, 97),
+        512: (237, 200, 80),
+        1024: (237, 197, 63),
+        2048: (237, 194, 46),
+    }
+    text_colors: Dict[int, Tuple[int, int, int]] = {
+        2: (119, 110, 101),
+        4: (119, 110, 101),
+    }
 
 
 # --- New Game class holding the game logic ---
@@ -186,8 +192,15 @@ class Game:
 class Renderer:
     """Handles rendering logic for 2048."""
 
-    def __init__(self, game: Game, tile_size: int, fps: int, font_name: str = "Arial"):
-        # Replace uppercase constants with snake_case names.
+    def __init__(
+        self,
+        game: Game,
+        tile_size: int,
+        fps: int,
+        config: GameConfig,
+        font_name: str = "Arial",
+    ):
+        self.config = config
         self.animation_duration = 200  # milliseconds for new tile animation
         self.title_y = 20  # Y coordinate for the title text
         self.subtitle_y = 85  # Y coordinate for the subtitle text
@@ -259,7 +272,7 @@ class Renderer:
         elif self.game.new_tile_position == (row_idx, col_idx):
             self.game.new_tile_position = None
         # Draw tile background.
-        color = TILE_COLORS.get(value, TILE_COLORS[2048])
+        color = self.config.tile_colors.get(value, self.config.tile_colors[2048])
         if is_anim_tile and scale < 1.0:
             scaled_size = int(self.tile_size * scale)
             offset = (self.tile_size - scaled_size) // 2
@@ -273,7 +286,7 @@ class Renderer:
         # Draw tile value text.
         if value != 0:
             font = self.tile_fonts.get(value, self.tile_fonts[2048])
-            text_color = TEXT_COLORS.get(value, LIGHT_TEXT)
+            text_color = self.config.text_colors.get(value, self.config.light_text)
             text = font.render(str(value), True, text_color)
             if is_anim_tile and scale < 1.0:
                 text = pygame.transform.scale(
@@ -285,13 +298,13 @@ class Renderer:
             self.screen.blit(text, (text_x, text_y))
 
     def draw(self):
-        self.screen.fill(BACKGROUND_COLOR)
-        title_text = self.title_font.render("2048", True, TEXT_COLOR)
+        self.screen.fill(self.config.background_color)
+        title_text = self.title_font.render("2048", True, self.config.text_color)
         self.screen.blit(
             title_text, (self.width // 2 - title_text.get_width() // 2, self.title_y)
         )
         subtitle_text = self.subtitle_font.render(
-            "Join the tiles, get to 2048!", True, TEXT_COLOR
+            "Join the tiles, get to 2048!", True, self.config.text_color
         )
         self.screen.blit(
             subtitle_text,
@@ -299,7 +312,7 @@ class Renderer:
         )
         pygame.draw.rect(
             self.screen,
-            GRID_COLOR,
+            self.config.grid_color,
             (self.width // 2 - 70, 115, 140, 60),
             border_radius=5,
         )
@@ -317,7 +330,9 @@ class Renderer:
             self.grid_width,
             self.grid_height,
         )
-        pygame.draw.rect(self.screen, GRID_COLOR, grid_rect, border_radius=6)
+        pygame.draw.rect(
+            self.screen, self.config.grid_color, grid_rect, border_radius=6
+        )
         current_time = pygame.time.get_ticks()
         grid_bottom = self.grid_top_y + self.grid_height + 20
         for row_idx in range(self.game.grid_size):
@@ -335,12 +350,14 @@ class Renderer:
                 )
                 self.draw_tile(x, y, value, row_idx, col_idx, current_time)
         instruction_text1 = self.instruction_font.render(
-            "HOW TO PLAY: Use your arrow keys to move the tiles.", True, TEXT_COLOR
+            "HOW TO PLAY: Use your arrow keys to move the tiles.",
+            True,
+            self.config.text_color,
         )
         instruction_text2 = self.instruction_font.render(
             "When two tiles with the same number touch, they merge into one!",
             True,
-            TEXT_COLOR,
+            self.config.text_color,
         )
         self.screen.blit(
             instruction_text1,
@@ -361,9 +378,11 @@ class Renderer:
             overlay = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
             overlay.fill((255, 255, 255, 150))
             self.screen.blit(overlay, (0, 0))
-            game_over_text = self.title_font.render("Game Over!", True, TEXT_COLOR)
+            game_over_text = self.title_font.render(
+                "Game Over!", True, self.config.text_color
+            )
             final_score_text = self.subtitle_font.render(
-                f"Final Score: {self.game.score}", True, TEXT_COLOR
+                f"Final Score: {self.game.score}", True, self.config.text_color
             )
             self.screen.blit(
                 game_over_text,
@@ -409,10 +428,23 @@ class Renderer:
     "--tile-size", "-t", default=100, help="Size of each tile in pixels", type=int
 )
 @click.option("--fps", "-f", default=60, help="Frames per second", type=int)
-def main(grid_size, tile_size, fps):
+@click.option(
+    "--config",
+    "-c",
+    "config_path",
+    type=click.Path(exists=True),
+    help="Path to config YAML file",
+)
+def main(grid_size, tile_size, fps, config_path):
     """Entry point for the 2048 game."""
+    if config_path:
+        with open(config_path, "r") as f:
+            data = yaml.safe_load(f)
+        cfg = GameConfig(**data)
+    else:
+        cfg = GameConfig()
     game = Game(grid_size)
-    renderer = Renderer(game, tile_size, fps)
+    renderer = Renderer(game, tile_size, fps, cfg)
     renderer.run()
 
 
