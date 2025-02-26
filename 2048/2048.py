@@ -44,46 +44,18 @@ SUBTITLE_Y = 85  # Y coordinate for the subtitle text
 GRID_TOP_Y = 195  # Y coordinate where grid starts
 
 
-class Game2048:
-    def __init__(
-        self, grid_size: int, tile_size: int, fps: int, font_name: str = "Arial"
-    ):
+# --- New Game class holding the game logic ---
+class Game:
+    def __init__(self, grid_size: int):
         self.grid_size = grid_size
-        self.tile_size = tile_size
-        self.fps = fps
-        self.font_name = font_name
-
-        self.grid_padding = 15
-        self.grid_width = (
-            self.grid_padding * (self.grid_size + 1) + self.tile_size * self.grid_size
-        )
-        self.grid_height = self.grid_width
-
-        self.width = max(500, self.grid_width + 40)
-        self.height = 175 + self.grid_height + 100
-
-        self.screen = None
-        self.clock = None
-        self.title_font = None
-        self.subtitle_font = None
-        self.instruction_font = None
-        self.score_font = None
-        self.score_label_font = None
-        self.tile_fonts = {}
-
-        self.board = [[0 for _ in range(self.grid_size)] for _ in range(self.grid_size)]
+        self.board = [[0 for _ in range(grid_size)] for _ in range(grid_size)]
         self.score = 0
         self.game_over = False
-
         self.new_tile_position = None
         self.animation_start_time = 0
-        # Initialize empty cell list
-        self.empty_cells = [
-            (i, j) for i in range(self.grid_size) for j in range(self.grid_size)
-        ]
+        self.empty_cells = [(i, j) for i in range(grid_size) for j in range(grid_size)]
 
     def update_empty_cells(self):
-        """Update the list of empty cell coordinates based on the current board."""
         self.empty_cells = [
             (i, j)
             for i in range(self.grid_size)
@@ -91,45 +63,16 @@ class Game2048:
             if self.board[i][j] == 0
         ]
 
-    def init_pygame(self):
-        """Initialize Pygame and create resources"""
-        pygame.init()
-
-        self.screen = pygame.display.set_mode((self.width, self.height))
-        pygame.display.set_caption("2048 Game")
-        self.clock = pygame.time.Clock()
-
-        self.title_font = pygame.font.SysFont(self.font_name, 60, bold=True)
-        self.subtitle_font = pygame.font.SysFont(self.font_name, 18)
-        self.instruction_font = pygame.font.SysFont(self.font_name, 16)
-        self.score_font = pygame.font.SysFont(self.font_name, 25, bold=True)
-        self.score_label_font = pygame.font.SysFont(self.font_name, 14, bold=True)
-
-        for value in [2, 4, 8, 16, 32, 64]:
-            self.tile_fonts[value] = pygame.font.SysFont(self.font_name, 45, bold=True)
-        for value in [128, 256, 512]:
-            self.tile_fonts[value] = pygame.font.SysFont(self.font_name, 40, bold=True)
-        for value in [1024, 2048]:
-            self.tile_fonts[value] = pygame.font.SysFont(self.font_name, 30, bold=True)
-
-        self.add_random_tile()
-        self.add_random_tile()
-
     def add_random_tile(self):
-        """Add a random tile (2 or 4) to an empty cell using the maintained empty cell list."""
         if not self.empty_cells:
             return None
-
         row_idx, col_idx = random.choice(self.empty_cells)
         self.board[row_idx][col_idx] = 2 if random.random() < 0.9 else 4
         self.new_tile_position = (row_idx, col_idx)
-        # Remove the chosen cell from the empty list
         self.empty_cells.remove((row_idx, col_idx))
         return (row_idx, col_idx)
 
-    # Rename slide method to merge_row for better clarity.
     def merge_row(self, row):
-        """Slide a row to the left and merge tiles (2048 logic)."""
         row = [value for value in row if value != 0]
         for i in range(len(row) - 1):
             if row[i] == row[i + 1]:
@@ -141,9 +84,7 @@ class Game2048:
             row.append(0)
         return row
 
-    # Update movement methods to use merge_row.
     def move_left(self):
-        """Move tiles left"""
         moved = False
         for row_idx in range(self.grid_size):
             original_row = self.board[row_idx].copy()
@@ -153,7 +94,6 @@ class Game2048:
         return moved
 
     def move_right(self):
-        """Move tiles right"""
         moved = False
         for row_idx in range(self.grid_size):
             original_row = self.board[row_idx].copy()
@@ -165,34 +105,28 @@ class Game2048:
         return moved
 
     def move_up(self):
-        """Move tiles up"""
         self.transpose()
         moved = self.move_left()
         self.transpose()
         return moved
 
     def move_down(self):
-        """Move tiles down"""
         self.transpose()
         moved = self.move_right()
         self.transpose()
         return moved
 
     def transpose(self):
-        """Transpose the grid to simplify up/down movements"""
-        transposed = [
+        self.board = [
             [self.board[col_idx][row_idx] for col_idx in range(self.grid_size)]
             for row_idx in range(self.grid_size)
         ]
-        self.board = transposed
 
     def is_game_over(self):
-        """Check if the game is over (no valid moves)"""
         for row_idx in range(self.grid_size):
             for col_idx in range(self.grid_size):
                 if self.board[row_idx][col_idx] == 0:
                     return False
-
         for row_idx in range(self.grid_size):
             for col_idx in range(self.grid_size):
                 if (
@@ -205,11 +139,9 @@ class Game2048:
                     and self.board[row_idx][col_idx] == self.board[row_idx + 1][col_idx]
                 ):
                     return False
-
         return True
 
     def handle_input(self, event):
-        """Handle keyboard input"""
         if event.type == pygame.KEYDOWN:
             moved = False
             if event.key == pygame.K_LEFT:
@@ -220,26 +152,67 @@ class Game2048:
                 moved = self.move_up()
             elif event.key == pygame.K_DOWN:
                 moved = self.move_down()
-
             if moved:
-                self.update_empty_cells()  # update empty cells based on new board state
+                self.update_empty_cells()
                 self.add_random_tile()
                 self.animation_start_time = pygame.time.get_ticks()
                 if self.is_game_over():
                     self.game_over = True
 
-    # Extract tile rendering and animation into its own method.
+
+# --- New Renderer class handling rendering logic ---
+class Renderer:
+    def __init__(self, game: Game, tile_size: int, fps: int, font_name: str = "Arial"):
+        self.game = game
+        self.tile_size = tile_size
+        self.fps = fps
+        self.font_name = font_name
+        self.grid_padding = 15
+        self.grid_width = (
+            self.grid_padding * (game.grid_size + 1) + tile_size * game.grid_size
+        )
+        self.grid_height = self.grid_width
+        self.width = max(500, self.grid_width + 40)
+        self.height = 175 + self.grid_height + 100
+
+        self.screen = None
+        self.clock = None
+        self.title_font = None
+        self.subtitle_font = None
+        self.instruction_font = None
+        self.score_font = None
+        self.score_label_font = None
+        self.tile_fonts = {}
+
+    def init_pygame(self):
+        pygame.init()
+        self.screen = pygame.display.set_mode((self.width, self.height))
+        pygame.display.set_caption("2048 Game")
+        self.clock = pygame.time.Clock()
+        self.title_font = pygame.font.SysFont(self.font_name, 60, bold=True)
+        self.subtitle_font = pygame.font.SysFont(self.font_name, 18)
+        self.instruction_font = pygame.font.SysFont(self.font_name, 16)
+        self.score_font = pygame.font.SysFont(self.font_name, 25, bold=True)
+        self.score_label_font = pygame.font.SysFont(self.font_name, 14, bold=True)
+        for value in [2, 4, 8, 16, 32, 64]:
+            self.tile_fonts[value] = pygame.font.SysFont(self.font_name, 45, bold=True)
+        for value in [128, 256, 512]:
+            self.tile_fonts[value] = pygame.font.SysFont(self.font_name, 40, bold=True)
+        for value in [1024, 2048]:
+            self.tile_fonts[value] = pygame.font.SysFont(self.font_name, 30, bold=True)
+        self.game.add_random_tile()
+        self.game.add_random_tile()
+
     def draw_tile(self, x, y, value, row_idx, col_idx, current_time):
-        # Draw tile background.
         color = TILE_COLORS.get(value, TILE_COLORS[2048])
         tile_rect = pygame.Rect(x, y, self.tile_size, self.tile_size)
         pygame.draw.rect(self.screen, color, tile_rect, border_radius=3)
-
-        # If a new tile is being animated, apply scaling.
-        if (current_time - self.animation_start_time < ANIMATION_DURATION) and (
-            self.new_tile_position == (row_idx, col_idx)
+        if (current_time - self.game.animation_start_time < ANIMATION_DURATION) and (
+            self.game.new_tile_position == (row_idx, col_idx)
         ):
-            progress = (current_time - self.animation_start_time) / ANIMATION_DURATION
+            progress = (
+                current_time - self.game.animation_start_time
+            ) / ANIMATION_DURATION
             scale = 0.1 + 0.9 * progress
             if scale < 1.0:
                 scaled_size = int(self.tile_size * scale)
@@ -248,17 +221,15 @@ class Game2048:
                     x + offset, y + offset, scaled_size, scaled_size
                 )
                 pygame.draw.rect(self.screen, color, scaled_rect, border_radius=3)
-
-        # For non-empty tiles, render the number.
         if value != 0:
             font = self.tile_fonts.get(value, self.tile_fonts[2048])
             text_color = TEXT_COLORS.get(value, LIGHT_TEXT)
             text = font.render(str(value), True, text_color)
-            if (current_time - self.animation_start_time < ANIMATION_DURATION) and (
-                self.new_tile_position == (row_idx, col_idx)
-            ):
+            if (
+                current_time - self.game.animation_start_time < ANIMATION_DURATION
+            ) and (self.game.new_tile_position == (row_idx, col_idx)):
                 progress = (
-                    current_time - self.animation_start_time
+                    current_time - self.game.animation_start_time
                 ) / ANIMATION_DURATION
                 scale = 0.1 + 0.9 * progress
                 if scale < 1.0:
@@ -270,16 +241,12 @@ class Game2048:
             text_y = y + (self.tile_size - text.get_height()) // 2
             self.screen.blit(text, (text_x, text_y))
 
-    # Modify the draw method to use the new draw_tile method.
     def draw(self):
-        """Draw the game board and UI"""
         self.screen.fill(BACKGROUND_COLOR)
-
         title_text = self.title_font.render("2048", True, TEXT_COLOR)
         self.screen.blit(
             title_text, (self.width // 2 - title_text.get_width() // 2, TITLE_Y)
         )
-
         subtitle_text = self.subtitle_font.render(
             "Join the tiles, get to 2048!", True, TEXT_COLOR
         )
@@ -287,7 +254,6 @@ class Game2048:
             subtitle_text,
             (self.width // 2 - subtitle_text.get_width() // 2, SUBTITLE_Y),
         )
-
         pygame.draw.rect(
             self.screen,
             GRID_COLOR,
@@ -298,11 +264,10 @@ class Game2048:
         self.screen.blit(
             score_label_text, (self.width // 2 - score_label_text.get_width() // 2, 123)
         )
-        score_text = self.score_font.render(str(self.score), True, (255, 255, 255))
+        score_text = self.score_font.render(str(self.game.score), True, (255, 255, 255))
         self.screen.blit(
             score_text, (self.width // 2 - score_text.get_width() // 2, 143)
         )
-
         grid_rect = pygame.Rect(
             (self.width - self.grid_width) // 2,
             GRID_TOP_Y,
@@ -310,14 +275,11 @@ class Game2048:
             self.grid_height,
         )
         pygame.draw.rect(self.screen, GRID_COLOR, grid_rect, border_radius=6)
-
         current_time = pygame.time.get_ticks()
         grid_bottom = GRID_TOP_Y + self.grid_height + 20
-
-        for row_idx in range(self.grid_size):
-            for col_idx in range(self.grid_size):
-                value = self.board[row_idx][col_idx]
-
+        for row_idx in range(self.game.grid_size):
+            for col_idx in range(self.game.grid_size):
+                value = self.game.board[row_idx][col_idx]
                 x = (
                     (self.width - self.grid_width) // 2
                     + self.grid_padding * (col_idx + 1)
@@ -328,9 +290,7 @@ class Game2048:
                     + self.grid_padding * (row_idx + 1)
                     + self.tile_size * row_idx
                 )
-
                 self.draw_tile(x, y, value, row_idx, col_idx, current_time)
-
         instruction_text1 = self.instruction_font.render(
             "HOW TO PLAY: Use your arrow keys to move the tiles.", True, TEXT_COLOR
         )
@@ -339,7 +299,6 @@ class Game2048:
             True,
             TEXT_COLOR,
         )
-
         self.screen.blit(
             instruction_text1,
             (self.width // 2 - instruction_text1.get_width() // 2, grid_bottom),
@@ -348,7 +307,6 @@ class Game2048:
             instruction_text2,
             (self.width // 2 - instruction_text2.get_width() // 2, grid_bottom + 25),
         )
-
         pygame.draw.line(
             self.screen,
             (200, 200, 200),
@@ -356,17 +314,14 @@ class Game2048:
             (self.width, self.height - 10),
             1,
         )
-
-        if self.game_over:
+        if self.game.game_over:
             overlay = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
             overlay.fill((255, 255, 255, 150))
             self.screen.blit(overlay, (0, 0))
-
             game_over_text = self.title_font.render("Game Over!", True, TEXT_COLOR)
             final_score_text = self.subtitle_font.render(
-                f"Final Score: {self.score}", True, TEXT_COLOR
+                f"Final Score: {self.game.score}", True, TEXT_COLOR
             )
-
             self.screen.blit(
                 game_over_text,
                 (
@@ -383,25 +338,22 @@ class Game2048:
             )
 
     def run(self):
-        """Run the game loop with proper initialization and cleanup"""
         self.init_pygame()
-
         running = True
         while running:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
-                elif not self.game_over:
-                    self.handle_input(event)
-
+                elif not self.game.game_over:
+                    self.game.handle_input(event)
             self.draw()
             pygame.display.flip()
             self.clock.tick(self.fps)
-
         pygame.quit()
         sys.exit()
 
 
+# --- Update main to use Game and Renderer ---
 @click.command()
 @click.option(
     "--grid-size",
@@ -415,9 +367,9 @@ class Game2048:
 )
 @click.option("--fps", "-f", default=60, help="Frames per second", type=int)
 def main(grid_size, tile_size, fps):
-    """2048 Game - Join the tiles, get to 2048!"""
-    game = Game2048(grid_size=grid_size, tile_size=tile_size, fps=fps)
-    game.run()
+    game = Game(grid_size)
+    renderer = Renderer(game, tile_size, fps)
+    renderer.run()
 
 
 if __name__ == "__main__":
