@@ -17,7 +17,7 @@ using Python and Pygame.
 import random
 import sys
 from enum import Enum, auto
-from typing import Dict, List, Optional, Set, Tuple, Union
+from typing import Dict, List, Optional, Set, Tuple
 
 import click
 import pygame
