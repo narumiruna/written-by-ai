@@ -1,30 +1,15 @@
 # /// script
 # requires-python = ">=3.12"
 # dependencies = [
+#     "click",
 #     "pygame",
+#     "ruff",
 # ]
 # ///
 import pygame
 import random
 import sys
-
-# Initialize Pygame
-pygame.init()
-
-# Constants
-WIDTH = 500
-# Calculate required height based on all UI elements:
-# - Title/header area: ~175px
-# - Grid area: GRID_HEIGHT + padding (~500px)
-# - Instructions area: ~80px
-# - Bottom padding: 20px
-GRID_SIZE = 4
-GRID_PADDING = 15
-TILE_SIZE = 100
-GRID_WIDTH = GRID_PADDING * (GRID_SIZE + 1) + TILE_SIZE * GRID_SIZE
-GRID_HEIGHT = GRID_WIDTH
-HEIGHT = 175 + GRID_HEIGHT + 100  # Dynamically calculate required height (~775px)
-FPS = 60
+import click
 
 # Colors (similar to web version)
 BACKGROUND_COLOR = (250, 248, 239)  # #faf8ef
@@ -55,49 +40,78 @@ TEXT_COLORS = {
     4: TEXT_COLOR
 }
 
-# Setup the display
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("2048 Game")
-clock = pygame.time.Clock()
-
-# Fonts
-title_font = pygame.font.SysFont("Arial", 60, bold=True)
-subtitle_font = pygame.font.SysFont("Arial", 18)
-instruction_font = pygame.font.SysFont("Arial", 16)
-score_font = pygame.font.SysFont("Arial", 25, bold=True)
-score_label_font = pygame.font.SysFont("Arial", 14, bold=True)
-tile_fonts = {
-    2: pygame.font.SysFont("Arial", 45, bold=True),
-    4: pygame.font.SysFont("Arial", 45, bold=True),
-    8: pygame.font.SysFont("Arial", 45, bold=True),
-    16: pygame.font.SysFont("Arial", 45, bold=True),
-    32: pygame.font.SysFont("Arial", 45, bold=True),
-    64: pygame.font.SysFont("Arial", 45, bold=True),
-    128: pygame.font.SysFont("Arial", 40, bold=True),
-    256: pygame.font.SysFont("Arial", 40, bold=True),
-    512: pygame.font.SysFont("Arial", 40, bold=True),
-    1024: pygame.font.SysFont("Arial", 30, bold=True),
-    2048: pygame.font.SysFont("Arial", 30, bold=True)
-}
-
 
 class Game2048:
-    def __init__(self):
-        self.grid = [[0 for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
+    def __init__(self, grid_size, tile_size, fps):
+        # Remove pygame.init() from here
+        
+        self.grid_size = grid_size
+        self.tile_size = tile_size
+        self.fps = fps
+        
+        # Calculate grid dimensions
+        self.grid_padding = 15
+        self.grid_width = self.grid_padding * (self.grid_size + 1) + self.tile_size * self.grid_size
+        self.grid_height = self.grid_width
+        
+        # Calculate window dimensions
+        self.width = max(500, self.grid_width + 40)  # Ensure minimum width
+        self.height = 175 + self.grid_height + 100  # Header + grid + instructions
+        
+        # Defer pygame-specific initialization
+        self.screen = None
+        self.clock = None
+        self.title_font = None
+        self.subtitle_font = None
+        self.instruction_font = None
+        self.score_font = None
+        self.score_label_font = None
+        self.tile_fonts = {}
+        
+        # Game state
+        self.grid = [[0 for _ in range(self.grid_size)] for _ in range(self.grid_size)]
         self.score = 0
         self.game_over = False
-        self.add_random_tile()
-        self.add_random_tile()
         
         # For animations
         self.new_tile_pos = None
         self.animation_time = 0
+
+    # Remove __del__ method as it's no longer needed
+    
+    def init_pygame(self):
+        """Initialize Pygame and create resources"""
+        pygame.init()
         
+        # Set up display
+        self.screen = pygame.display.set_mode((self.width, self.height))
+        pygame.display.set_caption("2048 Game")
+        self.clock = pygame.time.Clock()
+        
+        # Initialize fonts
+        self.title_font = pygame.font.SysFont("Arial", 60, bold=True)
+        self.subtitle_font = pygame.font.SysFont("Arial", 18)
+        self.instruction_font = pygame.font.SysFont("Arial", 16)
+        self.score_font = pygame.font.SysFont("Arial", 25, bold=True)
+        self.score_label_font = pygame.font.SysFont("Arial", 14, bold=True)
+        
+        # Create fonts for different tile values
+        for value in [2, 4, 8, 16, 32, 64]:
+            self.tile_fonts[value] = pygame.font.SysFont("Arial", 45, bold=True)
+        for value in [128, 256, 512]:
+            self.tile_fonts[value] = pygame.font.SysFont("Arial", 40, bold=True)
+        for value in [1024, 2048]:
+            self.tile_fonts[value] = pygame.font.SysFont("Arial", 30, bold=True)
+        
+        # Add initial tiles
+        self.add_random_tile()
+        self.add_random_tile()
+
     def add_random_tile(self):
         """Add a random tile (2 or 4) to an empty cell"""
         empty_cells = []
-        for r in range(GRID_SIZE):
-            for c in range(GRID_SIZE):
+        for r in range(self.grid_size):
+            for c in range(self.grid_size):
                 if self.grid[r][c] == 0:
                     empty_cells.append((r, c))
         
@@ -125,7 +139,7 @@ class Game2048:
         row = [value for value in row if value != 0]
         
         # Add zeros to the end
-        while len(row) < GRID_SIZE:
+        while len(row) < self.grid_size:
             row.append(0)
             
         return row
@@ -133,7 +147,7 @@ class Game2048:
     def move_left(self):
         """Move tiles left"""
         moved = False
-        for r in range(GRID_SIZE):
+        for r in range(self.grid_size):
             original_row = self.grid[r].copy()
             self.grid[r] = self.slide(self.grid[r])
             if original_row != self.grid[r]:
@@ -143,7 +157,7 @@ class Game2048:
     def move_right(self):
         """Move tiles right"""
         moved = False
-        for r in range(GRID_SIZE):
+        for r in range(self.grid_size):
             original_row = self.grid[r].copy()
             # Reverse, slide, then reverse back
             reversed_row = self.grid[r][::-1]
@@ -169,25 +183,25 @@ class Game2048:
         
     def transpose(self):
         """Transpose the grid to simplify up/down movements"""
-        transposed = [[self.grid[c][r] for c in range(GRID_SIZE)] for r in range(GRID_SIZE)]
+        transposed = [[self.grid[c][r] for c in range(self.grid_size)] for r in range(self.grid_size)]
         self.grid = transposed
         
     def is_game_over(self):
         """Check if the game is over (no valid moves)"""
         # Check for empty cells
-        for r in range(GRID_SIZE):
-            for c in range(GRID_SIZE):
+        for r in range(self.grid_size):
+            for c in range(self.grid_size):
                 if self.grid[r][c] == 0:
                     return False
                     
         # Check for adjacent matching tiles
-        for r in range(GRID_SIZE):
-            for c in range(GRID_SIZE):
+        for r in range(self.grid_size):
+            for c in range(self.grid_size):
                 # Check right neighbor
-                if c < GRID_SIZE - 1 and self.grid[r][c] == self.grid[r][c + 1]:
+                if c < self.grid_size - 1 and self.grid[r][c] == self.grid[r][c + 1]:
                     return False
                 # Check bottom neighbor
-                if r < GRID_SIZE - 1 and self.grid[r][c] == self.grid[r + 1][c]:
+                if r < self.grid_size - 1 and self.grid[r][c] == self.grid[r + 1][c]:
                     return False
                     
         return True
@@ -213,50 +227,50 @@ class Game2048:
     
     def draw(self):
         """Draw the game board and UI"""
-        screen.fill(BACKGROUND_COLOR)
+        self.screen.fill(BACKGROUND_COLOR)
         
         # Draw title
-        title_text = title_font.render("2048", True, TEXT_COLOR)
-        screen.blit(title_text, (WIDTH // 2 - title_text.get_width() // 2, 20))
+        title_text = self.title_font.render("2048", True, TEXT_COLOR)
+        self.screen.blit(title_text, (self.width // 2 - title_text.get_width() // 2, 20))
         
         # Draw subtitle
-        subtitle_text = subtitle_font.render("Join the tiles, get to 2048!", True, TEXT_COLOR)
-        screen.blit(subtitle_text, (WIDTH // 2 - subtitle_text.get_width() // 2, 85))
+        subtitle_text = self.subtitle_font.render("Join the tiles, get to 2048!", True, TEXT_COLOR)
+        self.screen.blit(subtitle_text, (self.width // 2 - subtitle_text.get_width() // 2, 85))
         
         # Draw score
-        pygame.draw.rect(screen, GRID_COLOR, (WIDTH // 2 - 70, 115, 140, 60), border_radius=5)
-        score_label_text = score_label_font.render("SCORE", True, (255, 255, 255))
-        screen.blit(score_label_text, (WIDTH // 2 - score_label_text.get_width() // 2, 123))
-        score_text = score_font.render(str(self.score), True, (255, 255, 255))
-        screen.blit(score_text, (WIDTH // 2 - score_text.get_width() // 2, 143))
+        pygame.draw.rect(self.screen, GRID_COLOR, (self.width // 2 - 70, 115, 140, 60), border_radius=5)
+        score_label_text = self.score_label_font.render("SCORE", True, (255, 255, 255))
+        self.screen.blit(score_label_text, (self.width // 2 - score_label_text.get_width() // 2, 123))
+        score_text = self.score_font.render(str(self.score), True, (255, 255, 255))
+        self.screen.blit(score_text, (self.width // 2 - score_text.get_width() // 2, 143))
         
         # Draw grid background
         grid_rect = pygame.Rect(
-            (WIDTH - GRID_WIDTH) // 2,
+            (self.width - self.grid_width) // 2,
             195,  # Moved up slightly
-            GRID_WIDTH,
-            GRID_HEIGHT
+            self.grid_width,
+            self.grid_height
         )
-        pygame.draw.rect(screen, GRID_COLOR, grid_rect, border_radius=6)
+        pygame.draw.rect(self.screen, GRID_COLOR, grid_rect, border_radius=6)
         
         # Draw tiles
         current_time = pygame.time.get_ticks()
         animation_active = current_time - self.animation_time < 200  # 200ms animation
         
-        for r in range(GRID_SIZE):
-            for c in range(GRID_SIZE):
+        for r in range(self.grid_size):
+            for c in range(self.grid_size):
                 value = self.grid[r][c]
                 
                 # Calculate tile position
-                x = (WIDTH - GRID_WIDTH) // 2 + GRID_PADDING * (c + 1) + TILE_SIZE * c
-                y = 195 + GRID_PADDING * (r + 1) + TILE_SIZE * r  # Adjusted for new grid position
+                x = (self.width - self.grid_width) // 2 + self.grid_padding * (c + 1) + self.tile_size * c
+                y = 195 + self.grid_padding * (r + 1) + self.tile_size * r  # Adjusted for new grid position
                 
                 # Create tile rect
-                tile_rect = pygame.Rect(x, y, TILE_SIZE, TILE_SIZE)
+                tile_rect = pygame.Rect(x, y, self.tile_size, self.tile_size)
                 
                 # Draw tile
                 color = TILE_COLORS.get(value, TILE_COLORS[2048])  # Default to 2048 color if value > 2048
-                pygame.draw.rect(screen, color, tile_rect, border_radius=3)
+                pygame.draw.rect(self.screen, color, tile_rect, border_radius=3)
                 
                 # Animate new tile
                 scale = 1.0
@@ -266,25 +280,25 @@ class Game2048:
                     
                     # Redraw with scale if animating
                     if scale < 1.0:
-                        scaled_size = int(TILE_SIZE * scale)
-                        offset = (TILE_SIZE - scaled_size) // 2
+                        scaled_size = int(self.tile_size * scale)
+                        offset = (self.tile_size - scaled_size) // 2
                         scaled_rect = pygame.Rect(
                             x + offset, 
                             y + offset, 
                             scaled_size, 
                             scaled_size
                         )
-                        pygame.draw.rect(screen, color, scaled_rect, border_radius=3)
+                        pygame.draw.rect(self.screen, color, scaled_rect, border_radius=3)
                 
                 # Draw tile text for non-zero tiles
                 if value != 0:
-                    font = tile_fonts.get(value, tile_fonts[2048])  # Default to 2048 font
+                    font = self.tile_fonts.get(value, self.tile_fonts[2048])  # Default to 2048 font
                     text_color = TEXT_COLORS.get(value, LIGHT_TEXT)  # Default to light text
                     text = font.render(str(value), True, text_color)
                     
                     # Center the text on the tile
-                    text_x = x + (TILE_SIZE - text.get_width()) // 2
-                    text_y = y + (TILE_SIZE - text.get_height()) // 2
+                    text_x = x + (self.tile_size - text.get_width()) // 2
+                    text_y = y + (self.tile_size - text.get_height()) // 2
                     
                     # Apply scale for animation if needed
                     if animation_active and self.new_tile_pos == (r, c) and scale < 1.0:
@@ -292,65 +306,80 @@ class Game2048:
                             text, 
                             (int(text.get_width() * scale), int(text.get_height() * scale))
                         )
-                        text_x = x + (TILE_SIZE - text.get_width()) // 2
-                        text_y = y + (TILE_SIZE - text.get_height()) // 2
+                        text_x = x + (self.tile_size - text.get_width()) // 2
+                        text_y = y + (self.tile_size - text.get_height()) // 2
                         
-                    screen.blit(text, (text_x, text_y))
+                    self.screen.blit(text, (text_x, text_y))
         
         # Calculate the bottom position of the grid
-        grid_bottom = 195 + GRID_HEIGHT + 20  # 20px padding
+        grid_bottom = 195 + self.grid_height + 20  # 20px padding
         
         # Draw instructions - moved to below the grid
-        instruction_text1 = instruction_font.render(
+        instruction_text1 = self.instruction_font.render(
             "HOW TO PLAY: Use your arrow keys to move the tiles.", 
             True, TEXT_COLOR
         )
-        instruction_text2 = instruction_font.render(
+        instruction_text2 = self.instruction_font.render(
             "When two tiles with the same number touch, they merge into one!", 
             True, TEXT_COLOR
         )
         
         # Position instructions below the grid with proper spacing
-        screen.blit(instruction_text1, (WIDTH // 2 - instruction_text1.get_width() // 2, grid_bottom))
-        screen.blit(instruction_text2, (WIDTH // 2 - instruction_text2.get_width() // 2, grid_bottom + 25))
+        self.screen.blit(instruction_text1, (self.width // 2 - instruction_text1.get_width() // 2, grid_bottom))
+        self.screen.blit(instruction_text2, (self.width // 2 - instruction_text2.get_width() // 2, grid_bottom + 25))
         
         # Add a padding indicator line at the bottom to verify visibility
-        pygame.draw.line(screen, 
+        pygame.draw.line(self.screen, 
                          (200, 200, 200), 
-                         (0, HEIGHT - 10), 
-                         (WIDTH, HEIGHT - 10), 
+                         (0, self.height - 10), 
+                         (self.width, self.height - 10), 
                          1)
         
         # Draw game over message
         if self.game_over:
-            overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+            overlay = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
             overlay.fill((255, 255, 255, 150))
-            screen.blit(overlay, (0, 0))
+            self.screen.blit(overlay, (0, 0))
             
-            game_over_text = title_font.render("Game Over!", True, TEXT_COLOR)
-            final_score_text = subtitle_font.render(f"Final Score: {self.score}", True, TEXT_COLOR)
+            game_over_text = self.title_font.render("Game Over!", True, TEXT_COLOR)
+            final_score_text = self.subtitle_font.render(f"Final Score: {self.score}", True, TEXT_COLOR)
             
-            screen.blit(game_over_text, (WIDTH // 2 - game_over_text.get_width() // 2, HEIGHT // 2 - 50))
-            screen.blit(final_score_text, (WIDTH // 2 - final_score_text.get_width() // 2, HEIGHT // 2 + 10))
+            self.screen.blit(game_over_text, 
+                           (self.width // 2 - game_over_text.get_width() // 2, self.height // 2 - 50))
+            self.screen.blit(final_score_text, 
+                           (self.width // 2 - final_score_text.get_width() // 2, self.height // 2 + 10))
 
-
-def main():
-    game = Game2048()
-    
-    running = True
-    while running:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-            elif not game.game_over:
-                game.handle_input(event)
+    def run(self):
+        """Run the game loop with proper initialization and cleanup"""
+        # Initialize Pygame at the start of the game loop
+        self.init_pygame()
         
-        game.draw()
-        pygame.display.flip()
-        clock.tick(FPS)
-    
-    pygame.quit()
-    sys.exit()
+        running = True
+        while running:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
+                elif not self.game_over:
+                    self.handle_input(event)
+            
+            self.draw()
+            pygame.display.flip()
+            self.clock.tick(self.fps)
+        
+        # Clean up Pygame at the end of the game loop
+        pygame.quit()
+        sys.exit()
+
+
+@click.command()
+@click.option('--grid-size', '-g', default=4, help='Size of the game grid (e.g. 4 for 4x4)', type=int)
+@click.option('--tile-size', '-t', default=100, help='Size of each tile in pixels', type=int)
+@click.option('--fps', '-f', default=60, help='Frames per second', type=int)
+def main(grid_size, tile_size, fps):
+    """2048 Game - Join the tiles, get to 2048!"""
+    game = Game2048(grid_size=grid_size, tile_size=tile_size, fps=fps)
+    game.run()
+
 
 if __name__ == "__main__":
     main()
