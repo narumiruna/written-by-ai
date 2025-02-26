@@ -65,12 +65,12 @@ class Game2048:
         self.score_label_font = None
         self.tile_fonts = {}
 
-        self.grid = [[0 for _ in range(self.grid_size)] for _ in range(self.grid_size)]
+        self.board = [[0 for _ in range(self.grid_size)] for _ in range(self.grid_size)]
         self.score = 0
         self.game_over = False
 
-        self.new_tile_pos = None
-        self.animation_time = 0
+        self.new_tile_position = None
+        self.animation_start_time = 0
 
     def init_pygame(self):
         """Initialize Pygame and create resources"""
@@ -99,18 +99,18 @@ class Game2048:
     def add_random_tile(self):
         """Add a random tile (2 or 4) to an empty cell"""
         empty_cells = []
-        for r in range(self.grid_size):
-            for c in range(self.grid_size):
-                if self.grid[r][c] == 0:
-                    empty_cells.append((r, c))
+        for row_idx in range(self.grid_size):
+            for col_idx in range(self.grid_size):
+                if self.board[row_idx][col_idx] == 0:
+                    empty_cells.append((row_idx, col_idx))
 
         if not empty_cells:
             return None
 
-        r, c = random.choice(empty_cells)
-        self.grid[r][c] = 2 if random.random() < 0.9 else 4
-        self.new_tile_pos = (r, c)
-        return (r, c)
+        row_idx, col_idx = random.choice(empty_cells)
+        self.board[row_idx][col_idx] = 2 if random.random() < 0.9 else 4
+        self.new_tile_position = (row_idx, col_idx)
+        return (row_idx, col_idx)
 
     def slide(self, row):
         """Slide a row to the left and combine tiles"""
@@ -132,22 +132,22 @@ class Game2048:
     def move_left(self):
         """Move tiles left"""
         moved = False
-        for r in range(self.grid_size):
-            original_row = self.grid[r].copy()
-            self.grid[r] = self.slide(self.grid[r])
-            if original_row != self.grid[r]:
+        for row_idx in range(self.grid_size):
+            original_row = self.board[row_idx].copy()
+            self.board[row_idx] = self.slide(self.board[row_idx])
+            if original_row != self.board[row_idx]:
                 moved = True
         return moved
 
     def move_right(self):
         """Move tiles right"""
         moved = False
-        for r in range(self.grid_size):
-            original_row = self.grid[r].copy()
-            reversed_row = self.grid[r][::-1]
+        for row_idx in range(self.grid_size):
+            original_row = self.board[row_idx].copy()
+            reversed_row = self.board[row_idx][::-1]
             slid_row = self.slide(reversed_row)
-            self.grid[r] = slid_row[::-1]
-            if original_row != self.grid[r]:
+            self.board[row_idx] = slid_row[::-1]
+            if original_row != self.board[row_idx]:
                 moved = True
         return moved
 
@@ -168,23 +168,29 @@ class Game2048:
     def transpose(self):
         """Transpose the grid to simplify up/down movements"""
         transposed = [
-            [self.grid[c][r] for c in range(self.grid_size)]
-            for r in range(self.grid_size)
+            [self.board[col_idx][row_idx] for col_idx in range(self.grid_size)]
+            for row_idx in range(self.grid_size)
         ]
-        self.grid = transposed
+        self.board = transposed
 
     def is_game_over(self):
         """Check if the game is over (no valid moves)"""
-        for r in range(self.grid_size):
-            for c in range(self.grid_size):
-                if self.grid[r][c] == 0:
+        for row_idx in range(self.grid_size):
+            for col_idx in range(self.grid_size):
+                if self.board[row_idx][col_idx] == 0:
                     return False
 
-        for r in range(self.grid_size):
-            for c in range(self.grid_size):
-                if c < self.grid_size - 1 and self.grid[r][c] == self.grid[r][c + 1]:
+        for row_idx in range(self.grid_size):
+            for col_idx in range(self.grid_size):
+                if (
+                    col_idx < self.grid_size - 1
+                    and self.board[row_idx][col_idx] == self.board[row_idx][col_idx + 1]
+                ):
                     return False
-                if r < self.grid_size - 1 and self.grid[r][c] == self.grid[r + 1][c]:
+                if (
+                    row_idx < self.grid_size - 1
+                    and self.board[row_idx][col_idx] == self.board[row_idx + 1][col_idx]
+                ):
                     return False
 
         return True
@@ -204,7 +210,7 @@ class Game2048:
 
             if moved:
                 self.add_random_tile()
-                self.animation_time = pygame.time.get_ticks()
+                self.animation_start_time = pygame.time.get_ticks()
                 if self.is_game_over():
                     self.game_over = True
 
@@ -245,18 +251,18 @@ class Game2048:
         pygame.draw.rect(self.screen, GRID_COLOR, grid_rect, border_radius=6)
 
         current_time = pygame.time.get_ticks()
-        animation_active = current_time - self.animation_time < 200
+        animation_active = current_time - self.animation_start_time < 200
 
-        for r in range(self.grid_size):
-            for c in range(self.grid_size):
-                value = self.grid[r][c]
+        for row_idx in range(self.grid_size):
+            for col_idx in range(self.grid_size):
+                value = self.board[row_idx][col_idx]
 
                 x = (
                     (self.width - self.grid_width) // 2
-                    + self.grid_padding * (c + 1)
-                    + self.tile_size * c
+                    + self.grid_padding * (col_idx + 1)
+                    + self.tile_size * col_idx
                 )
-                y = 195 + self.grid_padding * (r + 1) + self.tile_size * r
+                y = 195 + self.grid_padding * (row_idx + 1) + self.tile_size * row_idx
 
                 tile_rect = pygame.Rect(x, y, self.tile_size, self.tile_size)
 
@@ -264,8 +270,8 @@ class Game2048:
                 pygame.draw.rect(self.screen, color, tile_rect, border_radius=3)
 
                 scale = 1.0
-                if animation_active and self.new_tile_pos == (r, c):
-                    progress = (current_time - self.animation_time) / 200.0
+                if animation_active and self.new_tile_position == (row_idx, col_idx):
+                    progress = (current_time - self.animation_start_time) / 200.0
                     scale = 0.1 + 0.9 * progress
 
                     if scale < 1.0:
@@ -286,7 +292,11 @@ class Game2048:
                     text_x = x + (self.tile_size - text.get_width()) // 2
                     text_y = y + (self.tile_size - text.get_height()) // 2
 
-                    if animation_active and self.new_tile_pos == (r, c) and scale < 1.0:
+                    if (
+                        animation_active
+                        and self.new_tile_position == (row_idx, col_idx)
+                        and scale < 1.0
+                    ):
                         text = pygame.transform.scale(
                             text,
                             (
