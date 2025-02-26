@@ -17,8 +17,11 @@ import yaml  # for loading YAML config
 from pydantic import BaseModel
 
 
-# --- New config model (using pydantic) ---
+# --- Updated config model (using pydantic) ---
 class GameConfig(BaseModel):
+    grid_size: int = 4  # New: grid size moved to config
+    tile_size: int = 100  # New: tile size moved to config
+    fps: int = 60  # New: fps moved to config
     background_color: Tuple[int, int, int] = (250, 248, 239)
     grid_color: Tuple[int, int, int] = (187, 173, 160)
     text_color: Tuple[int, int, int] = (119, 110, 101)
@@ -42,6 +45,12 @@ class GameConfig(BaseModel):
         2: (119, 110, 101),
         4: (119, 110, 101),
     }
+    # New game-related parameters:
+    animation_duration: int = 200  # milliseconds for new tile animation
+    title_y: int = 20  # Y coordinate for title text
+    subtitle_y: int = 85  # Y coordinate for subtitle text
+    grid_top_y: int = 195  # Y coordinate where the grid starts
+    grid_padding: int = 15  # Padding around the grid
 
 
 # --- New Game class holding the game logic ---
@@ -188,7 +197,7 @@ class Game:
         self.add_random_tile()
 
 
-# --- New Renderer class handling rendering logic ---
+# --- Updated Renderer class handling rendering logic ---
 class Renderer:
     """Handles rendering logic for 2048."""
 
@@ -201,15 +210,16 @@ class Renderer:
         font_name: str = "Arial",
     ):
         self.config = config
-        self.animation_duration = 200  # milliseconds for new tile animation
-        self.title_y = 20  # Y coordinate for the title text
-        self.subtitle_y = 85  # Y coordinate for the subtitle text
-        self.grid_top_y = 195  # Y coordinate where grid starts
+        # Pull game layout and animation parameters from config:
+        self.animation_duration = config.animation_duration
+        self.title_y = config.title_y
+        self.subtitle_y = config.subtitle_y
+        self.grid_top_y = config.grid_top_y
         self.game = game
         self.tile_size = tile_size
         self.fps = fps
         self.font_name = font_name
-        self.grid_padding = 15
+        self.grid_padding = config.grid_padding
         self.grid_width = (
             self.grid_padding * (game.grid_size + 1) + tile_size * game.grid_size
         )
@@ -415,7 +425,7 @@ class Renderer:
         sys.exit()
 
 
-# --- Update main to use Game and Renderer ---
+# --- Update main to use GameConfig for grid_size, tile_size and fps ---
 @click.command()
 @click.option(
     "--grid-size",
@@ -443,8 +453,12 @@ def main(grid_size, tile_size, fps, config_path):
         cfg = GameConfig(**data)
     else:
         cfg = GameConfig()
-    game = Game(grid_size)
-    renderer = Renderer(game, tile_size, fps, cfg)
+    # Override config fields with click options:
+    cfg = cfg.model_copy(
+        update={"grid_size": grid_size, "tile_size": tile_size, "fps": fps}
+    )
+    game = Game(cfg.grid_size)  # Use grid_size from cfg
+    renderer = Renderer(game, cfg.tile_size, cfg.fps, cfg)
     renderer.run()
 
 
