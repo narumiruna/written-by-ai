@@ -40,6 +40,8 @@ TEXT_COLORS = {2: TEXT_COLOR, 4: TEXT_COLOR}
 
 # --- New Game class holding the game logic ---
 class Game:
+    """Handles game state and logic for 2048."""
+
     def __init__(self, grid_size: int) -> None:
         self.grid_size = grid_size
         self.board = [[0 for _ in range(grid_size)] for _ in range(grid_size)]
@@ -140,23 +142,25 @@ class Game:
         return True
 
     def handle_input(self, event: pygame.event.Event) -> None:
+        """Process a pygame event for moving tiles or restarting the game."""
         if event.type == pygame.KEYDOWN:
             now = pygame.time.get_ticks()
-            # Debounce: ignore key events if less than 150ms have passed
-            if now - self.last_move_time < 150:
+            if now - self.last_move_time < 150:  # Debounce key events
                 return
-            moved = False
-            if event.key == pygame.K_LEFT:
-                moved = self.move_left()
-            elif event.key == pygame.K_RIGHT:
-                moved = self.move_right()
-            elif event.key == pygame.K_UP:
-                moved = self.move_up()
-            elif event.key == pygame.K_DOWN:
-                moved = self.move_down()
+            moves = {
+                pygame.K_LEFT: self.move_left,
+                pygame.K_RIGHT: self.move_right,
+                pygame.K_UP: self.move_up,
+                pygame.K_DOWN: self.move_down,
+            }
+            if event.key in moves:
+                moved = moves[event.key]()
             elif event.key == pygame.K_r:
                 self.restart()
                 return
+            else:
+                moved = False
+
             if moved:
                 self.update_empty_cells()
                 self.add_random_tile()
@@ -180,6 +184,8 @@ class Game:
 
 # --- New Renderer class handling rendering logic ---
 class Renderer:
+    """Handles rendering logic for 2048."""
+
     def __init__(self, game: Game, tile_size: int, fps: int, font_name: str = "Arial"):
         # Replace uppercase constants with snake_case names.
         self.animation_duration = 200  # milliseconds for new tile animation
@@ -208,6 +214,7 @@ class Renderer:
         self.tile_fonts = {}
 
     def init_pygame(self) -> None:
+        """Initializes pygame, display, and fonts."""
         pygame.init()
         try:
             self.screen = pygame.display.set_mode((self.width, self.height))
@@ -403,6 +410,7 @@ class Renderer:
 )
 @click.option("--fps", "-f", default=60, help="Frames per second", type=int)
 def main(grid_size, tile_size, fps):
+    """Entry point for the 2048 game."""
     game = Game(grid_size)
     renderer = Renderer(game, tile_size, fps)
     renderer.run()
