@@ -3,7 +3,6 @@
 # dependencies = [
 #     "click",
 #     "pygame",
-#     "ruff",
 # ]
 # ///
 import pygame
@@ -43,22 +42,17 @@ TEXT_COLORS = {
 
 class Game2048:
     def __init__(self, grid_size, tile_size, fps):
-        # Remove pygame.init() from here
-        
         self.grid_size = grid_size
         self.tile_size = tile_size
         self.fps = fps
         
-        # Calculate grid dimensions
         self.grid_padding = 15
         self.grid_width = self.grid_padding * (self.grid_size + 1) + self.tile_size * self.grid_size
         self.grid_height = self.grid_width
         
-        # Calculate window dimensions
-        self.width = max(500, self.grid_width + 40)  # Ensure minimum width
-        self.height = 175 + self.grid_height + 100  # Header + grid + instructions
+        self.width = max(500, self.grid_width + 40)
+        self.height = 175 + self.grid_height + 100
         
-        # Defer pygame-specific initialization
         self.screen = None
         self.clock = None
         self.title_font = None
@@ -68,34 +62,27 @@ class Game2048:
         self.score_label_font = None
         self.tile_fonts = {}
         
-        # Game state
         self.grid = [[0 for _ in range(self.grid_size)] for _ in range(self.grid_size)]
         self.score = 0
         self.game_over = False
         
-        # For animations
         self.new_tile_pos = None
         self.animation_time = 0
 
-    # Remove __del__ method as it's no longer needed
-    
     def init_pygame(self):
         """Initialize Pygame and create resources"""
         pygame.init()
         
-        # Set up display
         self.screen = pygame.display.set_mode((self.width, self.height))
         pygame.display.set_caption("2048 Game")
         self.clock = pygame.time.Clock()
         
-        # Initialize fonts
         self.title_font = pygame.font.SysFont("Arial", 60, bold=True)
         self.subtitle_font = pygame.font.SysFont("Arial", 18)
         self.instruction_font = pygame.font.SysFont("Arial", 16)
         self.score_font = pygame.font.SysFont("Arial", 25, bold=True)
         self.score_label_font = pygame.font.SysFont("Arial", 14, bold=True)
         
-        # Create fonts for different tile values
         for value in [2, 4, 8, 16, 32, 64]:
             self.tile_fonts[value] = pygame.font.SysFont("Arial", 45, bold=True)
         for value in [128, 256, 512]:
@@ -103,7 +90,6 @@ class Game2048:
         for value in [1024, 2048]:
             self.tile_fonts[value] = pygame.font.SysFont("Arial", 30, bold=True)
         
-        # Add initial tiles
         self.add_random_tile()
         self.add_random_tile()
 
@@ -125,20 +111,16 @@ class Game2048:
         
     def slide(self, row):
         """Slide a row to the left and combine tiles"""
-        # Remove zeros
         row = [value for value in row if value != 0]
         
-        # Combine tiles
         for i in range(len(row) - 1):
             if row[i] == row[i + 1]:
                 row[i] *= 2
                 self.score += row[i]
                 row[i + 1] = 0
                 
-        # Remove zeros again after combining
         row = [value for value in row if value != 0]
         
-        # Add zeros to the end
         while len(row) < self.grid_size:
             row.append(0)
             
@@ -159,7 +141,6 @@ class Game2048:
         moved = False
         for r in range(self.grid_size):
             original_row = self.grid[r].copy()
-            # Reverse, slide, then reverse back
             reversed_row = self.grid[r][::-1]
             slid_row = self.slide(reversed_row)
             self.grid[r] = slid_row[::-1]
@@ -188,19 +169,15 @@ class Game2048:
         
     def is_game_over(self):
         """Check if the game is over (no valid moves)"""
-        # Check for empty cells
         for r in range(self.grid_size):
             for c in range(self.grid_size):
                 if self.grid[r][c] == 0:
                     return False
                     
-        # Check for adjacent matching tiles
         for r in range(self.grid_size):
             for c in range(self.grid_size):
-                # Check right neighbor
                 if c < self.grid_size - 1 and self.grid[r][c] == self.grid[r][c + 1]:
                     return False
-                # Check bottom neighbor
                 if r < self.grid_size - 1 and self.grid[r][c] == self.grid[r + 1][c]:
                     return False
                     
@@ -229,56 +206,46 @@ class Game2048:
         """Draw the game board and UI"""
         self.screen.fill(BACKGROUND_COLOR)
         
-        # Draw title
         title_text = self.title_font.render("2048", True, TEXT_COLOR)
         self.screen.blit(title_text, (self.width // 2 - title_text.get_width() // 2, 20))
         
-        # Draw subtitle
         subtitle_text = self.subtitle_font.render("Join the tiles, get to 2048!", True, TEXT_COLOR)
         self.screen.blit(subtitle_text, (self.width // 2 - subtitle_text.get_width() // 2, 85))
         
-        # Draw score
         pygame.draw.rect(self.screen, GRID_COLOR, (self.width // 2 - 70, 115, 140, 60), border_radius=5)
         score_label_text = self.score_label_font.render("SCORE", True, (255, 255, 255))
         self.screen.blit(score_label_text, (self.width // 2 - score_label_text.get_width() // 2, 123))
         score_text = self.score_font.render(str(self.score), True, (255, 255, 255))
         self.screen.blit(score_text, (self.width // 2 - score_text.get_width() // 2, 143))
         
-        # Draw grid background
         grid_rect = pygame.Rect(
             (self.width - self.grid_width) // 2,
-            195,  # Moved up slightly
+            195,
             self.grid_width,
             self.grid_height
         )
         pygame.draw.rect(self.screen, GRID_COLOR, grid_rect, border_radius=6)
         
-        # Draw tiles
         current_time = pygame.time.get_ticks()
-        animation_active = current_time - self.animation_time < 200  # 200ms animation
+        animation_active = current_time - self.animation_time < 200
         
         for r in range(self.grid_size):
             for c in range(self.grid_size):
                 value = self.grid[r][c]
                 
-                # Calculate tile position
                 x = (self.width - self.grid_width) // 2 + self.grid_padding * (c + 1) + self.tile_size * c
-                y = 195 + self.grid_padding * (r + 1) + self.tile_size * r  # Adjusted for new grid position
+                y = 195 + self.grid_padding * (r + 1) + self.tile_size * r
                 
-                # Create tile rect
                 tile_rect = pygame.Rect(x, y, self.tile_size, self.tile_size)
                 
-                # Draw tile
-                color = TILE_COLORS.get(value, TILE_COLORS[2048])  # Default to 2048 color if value > 2048
+                color = TILE_COLORS.get(value, TILE_COLORS[2048])
                 pygame.draw.rect(self.screen, color, tile_rect, border_radius=3)
                 
-                # Animate new tile
                 scale = 1.0
                 if animation_active and self.new_tile_pos == (r, c):
-                    progress = (current_time - self.animation_time) / 200.0  # 0.0 to 1.0
+                    progress = (current_time - self.animation_time) / 200.0
                     scale = 0.1 + 0.9 * progress
                     
-                    # Redraw with scale if animating
                     if scale < 1.0:
                         scaled_size = int(self.tile_size * scale)
                         offset = (self.tile_size - scaled_size) // 2
@@ -290,17 +257,14 @@ class Game2048:
                         )
                         pygame.draw.rect(self.screen, color, scaled_rect, border_radius=3)
                 
-                # Draw tile text for non-zero tiles
                 if value != 0:
-                    font = self.tile_fonts.get(value, self.tile_fonts[2048])  # Default to 2048 font
-                    text_color = TEXT_COLORS.get(value, LIGHT_TEXT)  # Default to light text
+                    font = self.tile_fonts.get(value, self.tile_fonts[2048])
+                    text_color = TEXT_COLORS.get(value, LIGHT_TEXT)
                     text = font.render(str(value), True, text_color)
                     
-                    # Center the text on the tile
                     text_x = x + (self.tile_size - text.get_width()) // 2
                     text_y = y + (self.tile_size - text.get_height()) // 2
                     
-                    # Apply scale for animation if needed
                     if animation_active and self.new_tile_pos == (r, c) and scale < 1.0:
                         text = pygame.transform.scale(
                             text, 
@@ -311,10 +275,8 @@ class Game2048:
                         
                     self.screen.blit(text, (text_x, text_y))
         
-        # Calculate the bottom position of the grid
-        grid_bottom = 195 + self.grid_height + 20  # 20px padding
+        grid_bottom = 195 + self.grid_height + 20
         
-        # Draw instructions - moved to below the grid
         instruction_text1 = self.instruction_font.render(
             "HOW TO PLAY: Use your arrow keys to move the tiles.", 
             True, TEXT_COLOR
@@ -324,18 +286,15 @@ class Game2048:
             True, TEXT_COLOR
         )
         
-        # Position instructions below the grid with proper spacing
         self.screen.blit(instruction_text1, (self.width // 2 - instruction_text1.get_width() // 2, grid_bottom))
         self.screen.blit(instruction_text2, (self.width // 2 - instruction_text2.get_width() // 2, grid_bottom + 25))
         
-        # Add a padding indicator line at the bottom to verify visibility
         pygame.draw.line(self.screen, 
                          (200, 200, 200), 
                          (0, self.height - 10), 
                          (self.width, self.height - 10), 
                          1)
         
-        # Draw game over message
         if self.game_over:
             overlay = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
             overlay.fill((255, 255, 255, 150))
@@ -351,7 +310,6 @@ class Game2048:
 
     def run(self):
         """Run the game loop with proper initialization and cleanup"""
-        # Initialize Pygame at the start of the game loop
         self.init_pygame()
         
         running = True
@@ -366,7 +324,6 @@ class Game2048:
             pygame.display.flip()
             self.clock.tick(self.fps)
         
-        # Clean up Pygame at the end of the game loop
         pygame.quit()
         sys.exit()
 
