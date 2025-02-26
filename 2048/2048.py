@@ -9,12 +9,22 @@
 # ///
 import random
 import sys
-from typing import Dict, Tuple
+from enum import Enum
+from typing import Dict, Optional, Tuple
 
 import click
 import pygame
 import yaml  # for loading YAML config
 from pydantic import BaseModel
+
+
+class Action(Enum):
+    UP = 1
+    DOWN = 2
+    LEFT = 3
+    RIGHT = 4
+    RESTART = 5
+    NONE = 6
 
 
 # --- Updated config model (using pydantic) ---
@@ -157,33 +167,32 @@ class Game:
                     return False
         return True
 
-    def handle_input(self, event: pygame.event.Event) -> None:
-        """Process a pygame event for moving tiles or restarting the game."""
-        if event.type == pygame.KEYDOWN:
-            now = pygame.time.get_ticks()
-            if now - self.last_move_time < 150:  # Debounce key events
-                return
-            moves = {
-                pygame.K_LEFT: self.move_left,
-                pygame.K_RIGHT: self.move_right,
-                pygame.K_UP: self.move_up,
-                pygame.K_DOWN: self.move_down,
-            }
-            if event.key in moves:
-                moved = moves[event.key]()
-            elif event.key == pygame.K_r:
-                self.restart()
-                return
-            else:
-                moved = False
+    def handle_action(self, action: Action) -> bool:
+        """Process a game action and return whether the board changed."""
+        if action == Action.RESTART:
+            self.restart()
+            return True
 
+        if action == Action.NONE:
+            return False
+
+        action_handlers = {
+            Action.LEFT: self.move_left,
+            Action.RIGHT: self.move_right,
+            Action.UP: self.move_up,
+            Action.DOWN: self.move_down,
+        }
+
+        if action in action_handlers:
+            moved = action_handlers[action]()
             if moved:
                 self.update_empty_cells()
                 self.add_random_tile()
-                self.animation_start_time = pygame.time.get_ticks()
-                self.last_move_time = now
                 if self.is_game_over():
                     self.game_over = True
+            return moved
+
+        return False
 
     def restart(self) -> None:
         # Reset game state for a new game.
@@ -407,18 +416,39 @@ class Renderer:
                 ),
             )
 
+    def handle_pygame_event(self, event: pygame.event.Event) -> Optional[Action]:
+        """Converts pygame events to game actions."""
+        if event.type == pygame.KEYDOWN:
+            key_to_action = {
+                pygame.K_LEFT: Action.LEFT,
+                pygame.K_RIGHT: Action.RIGHT,
+                pygame.K_UP: Action.UP,
+                pygame.K_DOWN: Action.DOWN,
+                pygame.K_r: Action.RESTART,
+            }
+            return key_to_action.get(event.key, Action.NONE)
+        return Action.NONE
+
     def run(self) -> None:
         self.init_pygame()
         running = True
         while running:
+            current_time = pygame.time.get_ticks()
+
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
-                else:
-                    self.game.handle_input(event)
+
+                action = self.handle_pygame_event(event)
+                moved = self.game.handle_action(action)
+
+                if moved:
+                    self.game.animation_start_time = current_time
+
             self.draw()
             pygame.display.flip()
             self.clock.tick(self.fps)
+
         pygame.quit()
         sys.exit()
 
