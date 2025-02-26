@@ -71,6 +71,19 @@ class Game2048:
 
         self.new_tile_position = None
         self.animation_start_time = 0
+        # Initialize empty cell list
+        self.empty_cells = [
+            (i, j) for i in range(self.grid_size) for j in range(self.grid_size)
+        ]
+
+    def update_empty_cells(self):
+        """Update the list of empty cell coordinates based on the current board."""
+        self.empty_cells = [
+            (i, j)
+            for i in range(self.grid_size)
+            for j in range(self.grid_size)
+            if self.board[i][j] == 0
+        ]
 
     def init_pygame(self):
         """Initialize Pygame and create resources"""
@@ -97,19 +110,15 @@ class Game2048:
         self.add_random_tile()
 
     def add_random_tile(self):
-        """Add a random tile (2 or 4) to an empty cell"""
-        empty_cells = []
-        for row_idx in range(self.grid_size):
-            for col_idx in range(self.grid_size):
-                if self.board[row_idx][col_idx] == 0:
-                    empty_cells.append((row_idx, col_idx))
-
-        if not empty_cells:
+        """Add a random tile (2 or 4) to an empty cell using the maintained empty cell list."""
+        if not self.empty_cells:
             return None
 
-        row_idx, col_idx = random.choice(empty_cells)
+        row_idx, col_idx = random.choice(self.empty_cells)
         self.board[row_idx][col_idx] = 2 if random.random() < 0.9 else 4
         self.new_tile_position = (row_idx, col_idx)
+        # Remove the chosen cell from the empty list
+        self.empty_cells.remove((row_idx, col_idx))
         return (row_idx, col_idx)
 
     def slide(self, row):
@@ -209,6 +218,7 @@ class Game2048:
                 moved = self.move_down()
 
             if moved:
+                self.update_empty_cells()  # update empty cells based on new board state
                 self.add_random_tile()
                 self.animation_start_time = pygame.time.get_ticks()
                 if self.is_game_over():
