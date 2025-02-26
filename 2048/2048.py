@@ -22,6 +22,7 @@ class GameConfig(BaseModel):
     grid_size: int = 4  # New: grid size moved to config
     tile_size: int = 100  # New: tile size moved to config
     fps: int = 60  # New: fps moved to config
+    font_name: str = "Arial"
     background_color: Tuple[int, int, int] = (250, 248, 239)
     grid_color: Tuple[int, int, int] = (187, 173, 160)
     text_color: Tuple[int, int, int] = (119, 110, 101)
@@ -53,19 +54,19 @@ class GameConfig(BaseModel):
     grid_padding: int = 15  # Padding around the grid
 
 
-# --- New Game class holding the game logic ---
+# --- Updated Game class holding the game logic ---
 class Game:
     """Handles game state and logic for 2048."""
 
-    def __init__(self, grid_size: int) -> None:
-        self.grid_size = grid_size
-        self.board = [[0 for _ in range(grid_size)] for _ in range(grid_size)]
+    def __init__(self, config: GameConfig) -> None:
+        self.grid_size = config.grid_size
+        self.board = [[0 for _ in range(self.grid_size)] for _ in range(self.grid_size)]
         self.score = 0
         self.game_over = False
         self.new_tile_position = None
         self.animation_start_time = 0
         self.empty_cells: set[tuple[int, int]] = {
-            (i, j) for i in range(grid_size) for j in range(grid_size)
+            (i, j) for i in range(self.grid_size) for j in range(self.grid_size)
         }
         self.last_move_time: int = 0  # for debouncing moves
 
@@ -204,10 +205,7 @@ class Renderer:
     def __init__(
         self,
         game: Game,
-        tile_size: int,
-        fps: int,
         config: GameConfig,
-        font_name: str = "Arial",
     ):
         self.config = config
         # Pull game layout and animation parameters from config:
@@ -216,12 +214,12 @@ class Renderer:
         self.subtitle_y = config.subtitle_y
         self.grid_top_y = config.grid_top_y
         self.game = game
-        self.tile_size = tile_size
-        self.fps = fps
-        self.font_name = font_name
+        self.tile_size = config.tile_size
+        self.fps = config.fps
+        self.font_name = config.font_name
         self.grid_padding = config.grid_padding
         self.grid_width = (
-            self.grid_padding * (game.grid_size + 1) + tile_size * game.grid_size
+            self.grid_padding * (game.grid_size + 1) + self.tile_size * game.grid_size
         )
         self.grid_height = self.grid_width
         self.width = max(500, self.grid_width + 40)
@@ -457,8 +455,8 @@ def main(grid_size, tile_size, fps, config_path):
     cfg = cfg.model_copy(
         update={"grid_size": grid_size, "tile_size": tile_size, "fps": fps}
     )
-    game = Game(cfg.grid_size)  # Use grid_size from cfg
-    renderer = Renderer(game, cfg.tile_size, cfg.fps, cfg)
+    game = Game(cfg)  # Use config object
+    renderer = Renderer(game, cfg)
     renderer.run()
 
 
