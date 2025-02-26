@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>2048 Game</title>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background: #faf8ef;
+            color: #776e65;
+            margin: 0;
+            padding: 0;
+        }
+
+        #game-container {
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .header {
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: 60px;
+            font-weight: bold;
+            margin: 0;
+            display: block;
+            color: #776e65;
+        }
+
+        .subtitle {
+            font-size: 18px;
+            margin-top: 10px;
+            margin-bottom: 30px;
+        }
+
+        .score-container {
+            position: relative;
+            display: inline-block;
+            background: #bbada0;
+            padding: 15px 25px;
+            font-size: 25px;
+            font-weight: bold;
+            border-radius: 3px;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .score-label {
+            font-size: 14px;
+            text-transform: uppercase;
+        }
+
+        #grid-container {
+            display: grid;
+            grid-template-columns: repeat(4, 100px);
+            gap: 15px;
+            background: #bbada0;
+            padding: 15px;
+            border-radius: 6px;
+            box-sizing: border-box;
+            position: relative;
+            margin: 0 auto;
+        }
+
+        .tile {
+            width: 100px;
+            height: 100px;
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 45px;
+            font-weight: bold;
+            transition: all 0.15s ease;
+        }
+
+        /* Tile colors based on value */
+        .tile-2 {
+            background: #eee4da;
+            color: #776e65;
+        }
+
+        .tile-4 {
+            background: #ede0c8;
+            color: #776e65;
+        }
+
+        .tile-8 {
+            background: #f2b179;
+            color: #f9f6f2;
+        }
+
+        .tile-16 {
+            background: #f59563;
+            color: #f9f6f2;
+        }
+
+        .tile-32 {
+            background: #f67c5f;
+            color: #f9f6f2;
+        }
+
+        .tile-64 {
+            background: #f65e3b;
+            color: #f9f6f2;
+        }
+
+        .tile-128 {
+            background: #edcf72;
+            color: #f9f6f2;
+            font-size: 40px;
+        }
+
+        .tile-256 {
+            background: #edcc61;
+            color: #f9f6f2;
+            font-size: 40px;
+        }
+
+        .tile-512 {
+            background: #edc850;
+            color: #f9f6f2;
+            font-size: 40px;
+        }
+
+        .tile-1024 {
+            background: #edc53f;
+            color: #f9f6f2;
+            font-size: 30px;
+        }
+
+        .tile-2048 {
+            background: #edc22e;
+            color: #f9f6f2;
+            font-size: 30px;
+        }
+
+        .tile-empty {
+            background: rgba(238, 228, 218, 0.35);
+        }
+
+        .tile-new {
+            animation: appear 0.2s;
+        }
+
+        @keyframes appear {
+            0% {
+                transform: scale(0);
+            }
+
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        .instructions {
+            margin-top: 30px;
+            line-height: 1.65;
+            font-size: 16px;
+        }
+
+        .game-explanation {
+            margin-top: 25px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="game-container">
+        <div class="header">
+            <h1>2048</h1>
+            <div class="subtitle">Join the tiles, get to <strong>2048!</strong></div>
+            <div class="score-container">
+                <div class="score-label">SCORE</div>
+                <span id="score">0</span>
+            </div>
+        </div>
+        <div id="grid-container"></div>
+        <div class="instructions">
+            <p><strong>HOW TO PLAY:</strong> Use your <strong>arrow keys</strong> to move the tiles. When two tiles with
+                the same number touch, they <strong>merge into one!</strong></p>
+        </div>
+        <div class="game-explanation">
+            <p>Created with ❤️ by JavaScript.</p>
+        </div>
+    </div>
+    <script>
+        const gridSize = 4;
+        let board = [];
+        let score = 0;
+        const gridContainer = document.getElementById('grid-container');
+        const scoreDisplay = document.getElementById('score');
+
+        // Initialize the board
+        function initBoard() {
+            board = Array.from({ length: gridSize }, () => Array(gridSize).fill(0));
+            addRandomTile();
+            addRandomTile();
+            drawBoard();
+        }
+
+        // Add a random tile (2 or 4) to an empty cell
+        function addRandomTile() {
+            const emptyCells = [];
+            for (let r = 0; r < gridSize; r++) {
+                for (let c = 0; c < gridSize; c++) {
+                    if (board[r][c] === 0) emptyCells.push({ r, c });
+                }
+            }
+            if (emptyCells.length === 0) return;
+            const { r, c } = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+            board[r][c] = Math.random() < 0.9 ? 2 : 4;
+            return { r, c };
+        }
+
+        // Render the board
+        function drawBoard() {
+            gridContainer.innerHTML = '';
+            for (let r = 0; r < gridSize; r++) {
+                for (let c = 0; c < gridSize; c++) {
+                    const tileValue = board[r][c];
+                    const tile = document.createElement('div');
+                    tile.className = tileValue !== 0 ? `tile tile-${tileValue}` : 'tile tile-empty';
+                    tile.textContent = tileValue !== 0 ? tileValue : '';
+
+                    // Data attributes for position
+                    tile.setAttribute('data-row', r);
+                    tile.setAttribute('data-col', c);
+
+                    gridContainer.appendChild(tile);
+                }
+            }
+            scoreDisplay.textContent = score;
+        }
+
+        // Update the board with animations
+        function updateBoard(addedTile) {
+            gridContainer.innerHTML = '';
+            for (let r = 0; r < gridSize; r++) {
+                for (let c = 0; c < gridSize; c++) {
+                    const tileValue = board[r][c];
+                    const tile = document.createElement('div');
+                    tile.className = tileValue !== 0 ? `tile tile-${tileValue}` : 'tile tile-empty';
+
+                    // Add animation classes for new tiles
+                    if (addedTile && addedTile.r === r && addedTile.c === c) {
+                        tile.classList.add('tile-new');
+                    }
+
+                    tile.textContent = tileValue !== 0 ? tileValue : '';
+                    tile.setAttribute('data-row', r);
+                    tile.setAttribute('data-col', c);
+
+                    gridContainer.appendChild(tile);
+                }
+            }
+            scoreDisplay.textContent = score;
+        }
+
+        // Slide a row to the left and combine tiles
+        function slide(row) {
+            let arr = row.filter(val => val);
+            for (let i = 0; i < arr.length - 1; i++) {
+                if (arr[i] === arr[i + 1]) {
+                    arr[i] *= 2;
+                    score += arr[i];
+                    arr[i + 1] = 0;
+                }
+            }
+            arr = arr.filter(val => val);
+            while (arr.length < gridSize) arr.push(0);
+            return arr;
+        }
+
+        // Rotate board for easier movement logic
+        function rotateBoard(clockwise = true) {
+            const newBoard = Array.from({ length: gridSize }, () => Array(gridSize).fill(0));
+            for (let r = 0; r < gridSize; r++) {
+                for (let c = 0; c < gridSize; c++) {
+                    if (clockwise) {
+                        newBoard[c][gridSize - 1 - r] = board[r][c];
+                    } else {
+                        newBoard[gridSize - 1 - c][r] = board[r][c];
+                    }
+                }
+            }
+            board = newBoard;
+        }
+
+        // Moves
+        function moveLeft() {
+            let moved = false;
+            for (let r = 0; r < gridSize; r++) {
+                const original = [...board[r]];
+                board[r] = slide(board[r]);
+                if (JSON.stringify(original) !== JSON.stringify(board[r])) moved = true;
+            }
+            return moved;
+        }
+
+        function moveRight() {
+            board = board.map(row => row.reverse());
+            const moved = moveLeft();
+            board = board.map(row => row.reverse());
+            return moved;
+        }
+
+        function moveUp() {
+            rotateBoard(false);
+            const moved = moveLeft();
+            rotateBoard(true);
+            return moved;
+        }
+
+        function moveDown() {
+            rotateBoard(true);
+            const moved = moveLeft();
+            rotateBoard(false);
+            return moved;
+        }
+
+        // Check game over condition
+        function isGameOver() {
+            for (let r = 0; r < gridSize; r++) {
+                for (let c = 0; c < gridSize; c++) {
+                    if (board[r][c] === 0) return false;
+                    if (c < gridSize - 1 && board[r][c] === board[r][c + 1]) return false;
+                    if (r < gridSize - 1 && board[r][c] === board[r + 1][c]) return false;
+                }
+            }
+            return true;
+        }
+
+        // Key event listener for moves
+        document.addEventListener('keydown', e => {
+            let moved = false;
+            switch (e.key) {
+                case 'ArrowLeft':
+                    moved = moveLeft();
+                    break;
+                case 'ArrowRight':
+                    moved = moveRight();
+                    break;
+                case 'ArrowUp':
+                    moved = moveUp();
+                    break;
+                case 'ArrowDown':
+                    moved = moveDown();
+                    break;
+            }
+            if (moved) {
+                const newTile = addRandomTile();
+                updateBoard(newTile);
+                if (isGameOver()) {
+                    setTimeout(() => {
+                        alert('Game Over! Final Score: ' + score);
+                    }, 300);
+                }
+            }
+        });
+
+        // Start the game
+        initBoard();
+    </script>
+</body>
+
+</html>
